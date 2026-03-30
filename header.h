@@ -1,6 +1,8 @@
 #ifndef HEADER_H
 #define HEADER_H
 
+#define HEADER_SIZE 17
+
 #include <stdio.h>
 
 typedef enum HeaderStatus
@@ -9,7 +11,14 @@ typedef enum HeaderStatus
     HEADER_FAILURE = 1
 } HeaderStatus;
 
-typedef struct Header Header;
+typedef struct Header
+{
+    char status;
+    int top;
+    int nextRRN;
+    int numStations;
+    int numPairStations;
+} Header;
 
 Header *create_header();
 

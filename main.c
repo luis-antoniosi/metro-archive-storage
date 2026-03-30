@@ -1,13 +1,15 @@
 #include <stdio.h>
-#include "header.h"
+#include "data.h"
 
 int main()
 {
-    FILE *file = fopen("arquivoSaida.bin", "wb+");
+    FILE *input = fopen("estacoes.csv", "r");
+    FILE *output = fopen("exit.bin", "wb+");
 
-    write_header(file, create_header());
+    write_bin_file(input, output);
 
-    fclose(file);
+    fclose(input);
+    fclose(output);
 
     return 0;
 }

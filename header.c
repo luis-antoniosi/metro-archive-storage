@@ -1,15 +1,6 @@
 #include "header.h"
 #include <stdlib.h>
 
-struct Header
-{
-    char status;
-    int top;
-    int nextRRN;
-    int numStations;
-    int numPairStations;
-};
-
 Header *create_header()
 {
     Header *header = malloc(sizeof(Header));
