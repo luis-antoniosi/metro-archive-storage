@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+#define BUF_SIZE 256
 #define DATA_SIZE 80
 #define TRASH '$'
 
@@ -37,6 +38,8 @@ Data *tokenize(char *buffer);
 
 void write_data(FILE *binFile, Data *data);
 int write_bin_file(FILE *inputFile, FILE *outputFile);
+
+int print_all_data(FILE *binFile);
 
 void destroy_data(Data **data);
 
