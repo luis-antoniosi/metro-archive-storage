@@ -1,20 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <locale.h>
 #include "data.h"
 
 #define INPUT_SIZE 64
 
-// n to gostanddo disso de printar o erro duas vezes nos cases, mas n sei oq fazer
+// n to gostando disso de printar o erro duas vezes nos cases, mas n sei oq fazer
 
-void binaryOnScreen(char *fileName);
+void binary_on_screen(char *fileName);
 
 int main()
 {
+    setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console
+
     FILE *input = NULL;
     FILE *output = NULL;
 
     char buffer[BUF_SIZE];
     char input1[INPUT_SIZE], input2[INPUT_SIZE];
+    int numInput = 0;
     char option = '0';
 
     do
@@ -30,7 +34,7 @@ int main()
 
         switch (option)
         {
-        // turning .csv into .bin
+        // turning .csv into .bin, prints checksum
         case '1':
             if (sscanf(buffer, "%*c %s %s", input1, input2) == 2) // %*c -> the * ignores it
             {
@@ -42,7 +46,7 @@ int main()
                     fclose(input);
                     fclose(output);
 
-                    binaryOnScreen(input2);
+                    binary_on_screen(input2);
                 }
                 else
                     printf("Falha no processamento do arquivo.\n");
@@ -59,7 +63,7 @@ int main()
             {
                 input = fopen(input1, "rb");
 
-                if (input != NULL)
+                if (input)
                 {
                     if (print_all_data(input) == DATA_FAILURE)
                         printf("Registro inexistente.");
@@ -77,7 +81,27 @@ int main()
             }
 
             break;
-        case 3:
+        // prints all registers where (search criteria)
+        case '3':
+            if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+            {
+                input = fopen(input1, "rb");
+
+                if (input)
+                {
+                    print_all_data_where(input, numInput);
+                    
+                    fclose(input);
+                }
+                else
+                {
+                    printf("Falha no processamento do arquivo.\n");
+                }
+            }
+            else
+            {
+                printf("Falha no processamento do arquivo.\n");
+            }
             break;
         default:
             break;
@@ -92,7 +116,7 @@ int main()
     return 0;
 }
 
-void binaryOnScreen(char *fileName)
+void binary_on_screen(char *fileName)
 {
     FILE *file = NULL;
 

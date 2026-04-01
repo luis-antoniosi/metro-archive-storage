@@ -72,7 +72,7 @@ Data *tokenize(char *buffer)
 
     token = strtok_s(NULL, ",", &context);
     tempData->codeIntegStation = check_for_null(token);
-    
+
     return tempData;
 }
 
@@ -114,7 +114,7 @@ void write_data(FILE *binFile, Data *data)
     }
 }
 
-int write_bin_file(FILE *inputFile, FILE *outputFile)
+DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 {
     if (!inputFile || !outputFile)
         return DATA_FAILURE;
@@ -205,6 +205,8 @@ Data *read_data(FILE *binFile)
     return tmpData;
 }
 
+// print related
+
 void print_data(Data *data)
 {
     if (!data)
@@ -231,7 +233,7 @@ void print_data(Data *data)
     printf("\n");
 }
 
-int print_all_data(FILE *binFile)
+DataStatus print_all_data(FILE *binFile)
 {
     if (!binFile)
         return DATA_FAILURE;
@@ -244,6 +246,107 @@ int print_all_data(FILE *binFile)
     {
         print_data(tmpData);
         destroy_data(&tmpData);
+    }
+
+    return DATA_SUCCESS;
+}
+
+// search related
+
+int check_match(Data *data, SearchField field)
+{
+    if (strcmp(field.name, "codEstacao") == 0)
+        return data->stationCode == atoi(field.value);
+    else if (strcmp(field.name, "codLinha") == 0)
+        return data->lineCode == atoi(field.value);
+    else if (strcmp(field.name, "codProxEstacao") == 0)
+        return data->nextStationCode == atoi(field.value);
+    else if (strcmp(field.name, "distProxEstacao") == 0)
+        return data->distNextStation == atoi(field.value);
+    else if (strcmp(field.name, "codLinhaIntegra") == 0)
+        return data->codeIntegLine == atoi(field.value);
+    else if (strcmp(field.name, "codEstIntegra") == 0)
+        return data->codeIntegStation == atoi(field.value);
+    else if (strcmp(field.name, "nomeEstacao") == 0)
+        return (strcmp(field.value, data->stationName) == 0);
+    else if (strcmp(field.name, "nomeLinha") == 0)
+        return (strcmp(field.value, data->lineName) == 0);
+
+    return 0;
+}
+
+void read_data_field(FILE *binFile, SearchField *filters, int pairIterations)
+{
+    Data *tmpData = NULL;
+    while ((tmpData = read_data(binFile)))
+    {
+        if (tmpData->removed == '1')
+        {
+            destroy_data(&tmpData);
+            printf("Registro inexistente.\n");
+            continue;
+        }
+
+        int isMatch = 1;
+        for (int i = 0; i < pairIterations; i++)
+        {
+            if (!check_match(tmpData, filters[i]))
+            {
+                isMatch = 0;
+                break;
+            }
+        }
+
+        if (isMatch)
+        {
+            print_data(tmpData);
+        }
+
+        destroy_data(&tmpData);
+    }
+}
+
+DataStatus print_all_data_where(FILE *binFile, int iterations)
+{
+    if (!binFile)
+        return DATA_FAILURE;
+
+    char buff[BUF_SIZE];
+    for (int i = 0; i < iterations; i++)
+    {
+        fseek(binFile, HEADER_SIZE, SEEK_SET);
+
+        if (!fgets(buff, BUF_SIZE, stdin))
+            break;
+
+        char *token = strtok(buff, " \n\r");
+        if (!token)
+            continue;
+
+        int pairIterations = atoi(token);
+
+        SearchField *filters = malloc(sizeof(SearchField) * pairIterations);
+        for (int j = 0; j < pairIterations; j++)
+        {
+            token = strtok(NULL, " \n\r");
+            if (token) // field's name never has quotes
+                strcpy(filters[j].name, token);
+
+            token = strtok(NULL, " \n\r");
+            if (token && token[0] == '\"') // checking if token (field's value) has quotes, like "Luz" instead of Luz
+            {
+                char *insideQuotes = strtok(token + 1, "\"");
+                strcpy(filters[j].value, insideQuotes);
+            }
+            else
+            {
+                strcpy(filters[j].value, token);
+            }
+        }
+
+        read_data_field(binFile, filters, pairIterations);
+
+        free(filters);
     }
 
     return DATA_SUCCESS;

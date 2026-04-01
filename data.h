@@ -34,12 +34,19 @@ typedef struct Data
     char *lineName;
 } Data;
 
+typedef struct SearchField
+{
+    char name[BUF_SIZE];
+    char value[BUF_SIZE];
+} SearchField;
+
 Data *tokenize(char *buffer);
 
 void write_data(FILE *binFile, Data *data);
-int write_bin_file(FILE *inputFile, FILE *outputFile);
+DataStatus write_bin_file(FILE *inputFile, FILE *outputFile);
 
-int print_all_data(FILE *binFile);
+DataStatus print_all_data(FILE *binFile);
+DataStatus print_all_data_where(FILE *binFile, int iterations);
 
 void destroy_data(Data **data);
 
