@@ -33,3 +33,18 @@ int write_header(FILE *file, Header *header)
 
     return HEADER_SUCCESS;
 }
+
+void status0(FILE *file){
+    unsigned char status = '0';
+    fseek(file, 0, SEEK_SET);
+    fwrite(&status, sizeof(unsigned char), 1, file);
+
+    fflush(file);
+}
+void status1(FILE *file){
+    unsigned char status = '1';
+    fseek(file, 0, SEEK_SET);
+    fwrite(&status, sizeof(unsigned char), 1, file);
+
+    fflush(file);
+}

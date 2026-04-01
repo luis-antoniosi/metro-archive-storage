@@ -24,4 +24,8 @@ Header *create_header();
 
 int write_header(FILE *file, Header *header);
 
+void status0(FILE *file);
+void status1(FILE *file);
+
+
 #endif

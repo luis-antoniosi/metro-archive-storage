@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include "data.h"
+#include "header.h"
 
 #define INPUT_SIZE 64
 
@@ -40,10 +41,12 @@ int main()
             {
                 input = fopen(input1, "r");
                 output = fopen(input2, "wb+");
+                status0(output);
 
                 if (write_bin_file(input, output) == DATA_SUCCESS)
                 {
                     fclose(input);
+                    status1(output);
                     fclose(output);
 
                     binary_on_screen(input2);
@@ -103,6 +106,30 @@ int main()
                 printf("Falha no processamento do arquivo.\n");
             }
             break;
+
+        case '4':
+            if(sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+            {
+                input = fopen(input1, "rb+");
+                status0(input);
+
+                if(input)
+                {
+
+                }
+                else
+                {
+                    printf("Falha no processamento do arquivo.\n");
+                }
+            }
+            else
+            {
+                printf("Falha no processamento do arquivo.\n");
+            }
+
+            //colocar status 1 ao fechar o arquivo
+            break;
+            
         default:
             break;
         }
