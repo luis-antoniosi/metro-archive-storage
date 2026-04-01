@@ -129,8 +129,9 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
         return DATA_FAILURE;
 
     char buffer[BUF_SIZE];
-    fgets(buffer, BUF_SIZE, inputFile); // discarded since first line just defines columns
-
+    if (!fgets(buffer, BUF_SIZE, inputFile)) // discarded since first line just defines columns
+        return DATA_FAILURE;
+    
     int numData = 0;
     while (fgets(buffer, sizeof(buffer), inputFile))
     {
