@@ -158,7 +158,7 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 Data *read_data(FILE *binFile)
 {
     long start = ftell(binFile);
-
+    
     char removed;
     if (fread(&removed, 1, 1, binFile) != 1)
         return NULL;
@@ -170,39 +170,61 @@ Data *read_data(FILE *binFile)
 
     int intBuf = 0;
 
-    fread(&tmpData->stationCode, sizeof(int), 1, binFile);
-    fread(&tmpData->lineCode, sizeof(int), 1, binFile);
-
-    fread(&tmpData->nextStationCode, sizeof(int), 1, binFile);
-    fread(&tmpData->distNextStation, sizeof(int), 1, binFile);
-
-    fread(&tmpData->codeIntegLine, sizeof(int), 1, binFile);
-    fread(&tmpData->codeIntegStation, sizeof(int), 1, binFile);
-
-    fread(&intBuf, sizeof(int), 1, binFile);
+    if(fread(&tmpData->stationCode, sizeof(int), 1, binFile) !=1 ||
+        fread(&tmpData->lineCode, sizeof(int), 1, binFile) !=1 ||
+        fread(&tmpData->nextStationCode, sizeof(int), 1, binFile) !=1 ||
+        fread(&tmpData->distNextStation, sizeof(int), 1, binFile) !=1 ||
+        fread(&tmpData->codeIntegLine, sizeof(int), 1, binFile) !=1 ||
+        fread(&tmpData->codeIntegStation, sizeof(int), 1, binFile) !=1 ||
+        fread(&intBuf, sizeof(int), 1, binFile) !=1)
+    {
+        printf("Unable to read file\n");
+        free(tmpData);
+        return NULL;
+    }
     tmpData->sizeStationName = intBuf;
     if (intBuf > 0)
     {
         tmpData->stationName = malloc(sizeof(char) * (intBuf + 1));
-        fread(tmpData->stationName, intBuf, 1, binFile);
+        if(fread(tmpData->stationName, intBuf, 1, binFile) != 1){
+            printf("Unable to read file\n");
+            free(tmpData->stationName);
+            free(tmpData);
+            return NULL;
+        }
         tmpData->stationName[intBuf] = '\0';
     }
     else
         tmpData->stationName = NULL;
 
-    fread(&intBuf, sizeof(int), 1, binFile);
+    if(fread(&intBuf, sizeof(int), 1, binFile) != 1)
+    {
+        printf("Unable to read file\n");
+        free(tmpData->stationName);
+        free(tmpData);
+        return NULL;
+    }
     tmpData->sizeLineName = intBuf;
     if (intBuf > 0)
     {
         tmpData->lineName = malloc(sizeof(char) * (intBuf + 1));
-        fread(tmpData->lineName, intBuf, 1, binFile);
+        if(fread(tmpData->lineName, intBuf, 1, binFile) != 1)
+        {
+            printf("Unable to read file\n");
+            free(tmpData->stationName);
+            free(tmpData->lineName);
+            free(tmpData);
+            return NULL;
+        };
         tmpData->lineName[intBuf] = '\0';
     }
     else
-        tmpData->stationName = NULL;
+        tmpData->lineName = NULL;
 
     if (fseek(binFile, start + 80, SEEK_SET) != 0)
     {
+        free(tmpData->stationName);
+        free(tmpData->lineName);
         free(tmpData);
         return NULL;
     }

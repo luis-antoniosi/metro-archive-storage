@@ -24,7 +24,7 @@ int main()
     do
     {
         if (!fgets(buffer, BUF_SIZE, stdin))
-            break;
+            break;  
 
         if (sscanf(buffer, "%c", &option) != 1)
         {
@@ -128,7 +128,11 @@ void binary_on_screen(char *fileName)
 
     fseek(file, 0, SEEK_SET);
     unsigned char *bytesStr = malloc(sizeof(unsigned char) * totalBytes);
-    fread(bytesStr, 1, totalBytes, file);
+    if(fread(bytesStr, 1, totalBytes, file) != (long unsigned int)totalBytes){
+        printf("Unable to read file\n");
+        free(bytesStr);
+        return;
+    }
 
     unsigned long byteSum = 0;
     for (long i = 0; i < totalBytes; i++)

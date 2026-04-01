@@ -1,0 +1,9 @@
+{
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/luizvioto/facul/arquivos/metro-archive-storage",
+            "binaryPath": "/home/luizvioto/facul/arquivos/metro-archive-storage/programaTrab",
+            "binaryArgs": []
+        }
+    ]
+}
