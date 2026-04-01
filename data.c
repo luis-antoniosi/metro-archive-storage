@@ -4,6 +4,10 @@
 #include "header.h"
 #include "data.h"
 
+#if defined(_WIN32) || defined(_WIN64)
+#define strtok_r strtok_s
+#endif
+
 void write_data(FILE *binFile, Data *data);
 int check_for_null(char *str);
 
@@ -37,10 +41,10 @@ Data *tokenize(char *buffer)
 
     char *context;
 
-    char *token = strtok_s(buffer, ",", &context);
+    char *token = strtok_r(buffer, ",", &context);
     tempData->stationCode = check_for_null(token);
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     if (token)
     {
         int len = strlen(token);
@@ -49,10 +53,10 @@ Data *tokenize(char *buffer)
         tempData->sizeStationName = len;
     }
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     tempData->lineCode = check_for_null(token);
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     if (token)
     {
         int len = strlen(token);
@@ -61,16 +65,16 @@ Data *tokenize(char *buffer)
         tempData->sizeLineName = len;
     }
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     tempData->nextStationCode = check_for_null(token);
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     tempData->distNextStation = check_for_null(token);
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     tempData->codeIntegLine = check_for_null(token);
 
-    token = strtok_s(NULL, ",", &context);
+    token = strtok_r(NULL, ",", &context);
     tempData->codeIntegStation = check_for_null(token);
 
     return tempData;

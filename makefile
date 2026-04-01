@@ -1,5 +1,5 @@
 CC	:=	gcc
-CFLAGS	:=	-std=c11 -Wall -Wextra -Werror -O3 -march=native -MMD
+CFLAGS	:=	-Wall -Wextra -Werror -O3 -march=native -MMD
 TARGET	:=	main
 SRCS	:=	$(wildcard *.c)
 OBJS	:=	$(SRCS:.c=.o)
@@ -13,7 +13,7 @@ $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $@
 
 %.o: %.c
-	$(CC) $(CFLAGS) -o $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 -include $(DEPS)
 
