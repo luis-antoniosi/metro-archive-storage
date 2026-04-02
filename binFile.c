@@ -83,19 +83,19 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 
     while (fgets(buffer, sizeof(buffer), inputFile))
     {
-        Data *newData = tokenize(buffer);
-        if (!newData)
+        Register *newRegister = parse_register(buffer);
+        if (!newRegister)
             continue;
 
-        newData->removed = '0';
-        newData->next = tempHeader->top;
+        newRegister->removed = '0';
+        newRegister->next = tempHeader->top;
 
-        if (newData->stationName)
+        if (newRegister->stationName)
         {
             int foundName = 0;
             for (int i = 0; i < numStations; i++)
             {
-                if (strcmp(seenStations[i], newData->stationName) == 0)
+                if (strcmp(seenStations[i], newRegister->stationName) == 0)
                 {
                     foundName = 1;
                     break;
@@ -103,15 +103,15 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
             }
 
             if (!foundName)
-                seenStations[numStations++] = strdup(newData->stationName);
+                seenStations[numStations++] = strdup(newRegister->stationName);
         }
 
-        if (newData->nextStationCode != -1)
+        if (newRegister->nextStationCode != -1)
         {
             int foundPair = 0;
             // impossibilitating cases like (1, 2) !=    (2, 1)
-            int first = (newData->stationCode < newData->nextStationCode) ? newData->stationCode : newData->nextStationCode;
-            int scnd = (newData->stationCode < newData->nextStationCode) ? newData->nextStationCode : newData->stationCode;
+            int first = (newRegister->stationCode < newRegister->nextStationCode) ? newRegister->stationCode : newRegister->nextStationCode;
+            int scnd = (newRegister->stationCode < newRegister->nextStationCode) ? newRegister->nextStationCode : newRegister->stationCode;
             for (int i = 0; i < numPairStations; i++)
             {
                 if (seenPairs[i].stationCode == first && seenPairs[i].nextStationCode == scnd)
@@ -129,10 +129,10 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
             }
         }
 
-        write_data(outputFile, newData);
+        write_register(outputFile, newRegister);
         numData++;
 
-        destroy_data(&newData);
+        destroy_register(&newRegister);
     }
 
     tempHeader->nextRRN = numData;
@@ -169,13 +169,13 @@ DataStatus print_all_data(FILE *binFile)
     if (fseek(binFile, HEADER_SIZE, SEEK_SET))
         return DATA_FAILURE;
 
-    Data *tmpData;
-    while ((tmpData = read_data(binFile)))
+    Register *tmpRegister;
+    while ((tmpRegister = read_register(binFile)))
     {
-        if (tmpData->removed != '1')
-            print_data(tmpData);
+        if (tmpRegister->removed != '1')
+            print_register(tmpRegister);
 
-        destroy_data(&tmpData);
+        destroy_register(&tmpRegister);
     }
 
     return DATA_SUCCESS;
@@ -194,15 +194,15 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
-        Data *tmpData = NULL;
+        Register *tmpRegister = NULL;
         int isMatch = 1;
 
-        while ((tmpData = check_data_field_search(binFile, filters, pairIterations, &isMatch)))
+        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
         {
-            if (isMatch && tmpData)
-                print_data(tmpData);
+            if (isMatch && tmpRegister)
+                print_register(tmpRegister);
 
-            destroy_data(&tmpData);
+            destroy_register(&tmpRegister);
         }
 
         free(filters);
@@ -226,17 +226,17 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
-        Data *tmpData = NULL;
+        Register *tmpRegister = NULL;
         int isMatch = 1;
-        while ((tmpData = check_data_field_search(binFile, filters, pairIterations, &isMatch)))
+        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
         {
-            if (isMatch && tmpData)
+            if (isMatch && tmpRegister)
             {
-                remove_data(binFile);
-                fseek(binFile, DATA_SIZE - 1, SEEK_CUR);
+                remove_register(binFile);
+                fseek(binFile, REGISTER_SIZE - 1, SEEK_CUR);
             }
 
-            destroy_data(&tmpData);
+            destroy_register(&tmpRegister);
         }
 
         free(filters);

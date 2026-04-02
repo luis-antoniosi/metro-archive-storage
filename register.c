@@ -32,61 +32,61 @@ static int check_for_null(char *str)
     return !str || str[0] == '\0' || strcspn(str, "\n") == 0 ? -1 : atoi(str);
 }
 
-Data *tokenize(char *buffer)
+Register *parse_register(char *buffer)
 {
-    Data *tempData = malloc(sizeof(Data));
-    if (!tempData)
+    Register *tmpRegister = malloc(sizeof(Register));
+    if (!tmpRegister)
         return NULL;
 
     char *ptr = buffer;
     char *token;
 
     token = custom_strtok(&ptr, ',');
-    tempData->stationCode = check_for_null(token);
+    tmpRegister->stationCode = check_for_null(token);
 
     token = custom_strtok(&ptr, ',');
     if (token && token[0] != '\0')
     {
-        tempData->stationName = strdup(token); // strdup already allocates size
-        tempData->sizeStationName = strlen(token);
+        tmpRegister->stationName = strdup(token); // strdup already allocates size
+        tmpRegister->sizeStationName = strlen(token);
     }
     else
     {
-        tempData->stationName = NULL;
-        tempData->sizeStationName = 0;
+        tmpRegister->stationName = NULL;
+        tmpRegister->sizeStationName = 0;
     }
 
     token = custom_strtok(&ptr, ',');
-    tempData->lineCode = check_for_null(token);
+    tmpRegister->lineCode = check_for_null(token);
 
     token = custom_strtok(&ptr, ',');
     if (token && token[0] != '\0')
     {
-        tempData->lineName = strdup(token);
-        tempData->sizeLineName = strlen(token);
+        tmpRegister->lineName = strdup(token);
+        tmpRegister->sizeLineName = strlen(token);
     } 
     else
     {
-        tempData->lineName = NULL;
-        tempData->sizeLineName = 0;
+        tmpRegister->lineName = NULL;
+        tmpRegister->sizeLineName = 0;
     }
 
     token = custom_strtok(&ptr, ',');
-    tempData->nextStationCode = check_for_null(token);
+    tmpRegister->nextStationCode = check_for_null(token);
 
     token = custom_strtok(&ptr, ',');
-    tempData->distNextStation = check_for_null(token);
+    tmpRegister->distNextStation = check_for_null(token);
 
     token = custom_strtok(&ptr, ',');
-    tempData->codeIntegLine = check_for_null(token);
+    tmpRegister->codeIntegLine = check_for_null(token);
 
     token = custom_strtok(&ptr, ',');
-    tempData->codeIntegStation = check_for_null(token);
+    tmpRegister->codeIntegStation = check_for_null(token);
 
-    return tempData;
+    return tmpRegister;
 }
 
-void write_data(FILE *binFile, Data *data)
+void write_register(FILE *binFile, Register *data)
 {
     long start = ftell(binFile);
 
@@ -113,7 +113,7 @@ void write_data(FILE *binFile, Data *data)
     long end = ftell(binFile);
     int newDataSize = end - start;
 
-    int remainingBytes = DATA_SIZE - newDataSize;
+    int remainingBytes = REGISTER_SIZE - newDataSize;
     if (remainingBytes > 0)
     {
         char tmp = TRASH;
@@ -124,7 +124,7 @@ void write_data(FILE *binFile, Data *data)
     }
 }
 
-Data *read_data(FILE *binFile)
+Register *read_register(FILE *binFile)
 {
     long start = ftell(binFile);
 
@@ -135,75 +135,75 @@ Data *read_data(FILE *binFile)
     if (fseek(binFile, 4, SEEK_CUR))
         return NULL;
 
-    Data *tmpData = calloc(1, sizeof(Data));
-    if (!tmpData)
+    Register *tmpRegister = calloc(1, sizeof(Register));
+    if (!tmpRegister)
         return NULL;
 
-    tmpData->removed = removed;
+    tmpRegister->removed = removed;
     // read fixed-size integers
-    if (fread(&tmpData->stationCode, sizeof(int), 1, binFile) != 1 ||
-        fread(&tmpData->lineCode, sizeof(int), 1, binFile) != 1 ||
-        fread(&tmpData->nextStationCode, sizeof(int), 1, binFile) != 1 ||
-        fread(&tmpData->distNextStation, sizeof(int), 1, binFile) != 1 ||
-        fread(&tmpData->codeIntegLine, sizeof(int), 1, binFile) != 1 ||
-        fread(&tmpData->codeIntegStation, sizeof(int), 1, binFile) != 1 ||
-        fread(&tmpData->sizeStationName, sizeof(int), 1, binFile) != 1)
+    if (fread(&tmpRegister->stationCode, sizeof(int), 1, binFile) != 1 ||
+        fread(&tmpRegister->lineCode, sizeof(int), 1, binFile) != 1 ||
+        fread(&tmpRegister->nextStationCode, sizeof(int), 1, binFile) != 1 ||
+        fread(&tmpRegister->distNextStation, sizeof(int), 1, binFile) != 1 ||
+        fread(&tmpRegister->codeIntegLine, sizeof(int), 1, binFile) != 1 ||
+        fread(&tmpRegister->codeIntegStation, sizeof(int), 1, binFile) != 1 ||
+        fread(&tmpRegister->sizeStationName, sizeof(int), 1, binFile) != 1)
     {
         printf("Unable to read general attributes of a register.\n");
-        free(tmpData);
+        free(tmpRegister);
         return NULL;
     }
 
     // read station name
-    if (tmpData->sizeStationName > 0)
+    if (tmpRegister->sizeStationName > 0)
     {
-        tmpData->stationName = malloc(sizeof(char) * (tmpData->sizeStationName + 1));
-        if (fread(tmpData->stationName, tmpData->sizeStationName, 1, binFile) != 1)
+        tmpRegister->stationName = malloc(sizeof(char) * (tmpRegister->sizeStationName + 1));
+        if (fread(tmpRegister->stationName, tmpRegister->sizeStationName, 1, binFile) != 1)
         {
             printf("Unable to read station name.\n");
-            free(tmpData->stationName);
-            free(tmpData);
+            free(tmpRegister->stationName);
+            free(tmpRegister);
             return NULL;
         }
-        tmpData->stationName[tmpData->sizeStationName] = '\0';
+        tmpRegister->stationName[tmpRegister->sizeStationName] = '\0';
     }
     else
-        tmpData->stationName = NULL;
+        tmpRegister->stationName = NULL;
 
     // read line's name size + line's name
-    if (fread(&tmpData->sizeLineName, sizeof(int), 1, binFile) != 1)
+    if (fread(&tmpRegister->sizeLineName, sizeof(int), 1, binFile) != 1)
     {
         printf("Unable to read line's name size.\n");
-        free(tmpData->stationName);
-        free(tmpData);
+        free(tmpRegister->stationName);
+        free(tmpRegister);
         return NULL;
     }
 
-    if (tmpData->sizeLineName > 0)
+    if (tmpRegister->sizeLineName > 0)
     {
-        tmpData->lineName = malloc(sizeof(char) * (tmpData->sizeLineName + 1));
-        if (fread(tmpData->lineName, tmpData->sizeLineName, 1, binFile) != 1)
+        tmpRegister->lineName = malloc(sizeof(char) * (tmpRegister->sizeLineName + 1));
+        if (fread(tmpRegister->lineName, tmpRegister->sizeLineName, 1, binFile) != 1)
         {
             printf("Unable to read line name.\n");
-            free(tmpData->stationName);
-            free(tmpData->lineName);
-            free(tmpData);
+            free(tmpRegister->stationName);
+            free(tmpRegister->lineName);
+            free(tmpRegister);
             return NULL;
         };
-        tmpData->lineName[tmpData->sizeLineName] = '\0';
+        tmpRegister->lineName[tmpRegister->sizeLineName] = '\0';
     }
     else
-        tmpData->lineName = NULL;
+        tmpRegister->lineName = NULL;
 
-    if (fseek(binFile, start + DATA_SIZE, SEEK_SET) != 0)
+    if (fseek(binFile, start + REGISTER_SIZE, SEEK_SET) != 0)
     {
-        free(tmpData->stationName);
-        free(tmpData->lineName);
-        free(tmpData);
+        free(tmpRegister->stationName);
+        free(tmpRegister->lineName);
+        free(tmpRegister);
         return NULL;
     }
 
-    return tmpData;
+    return tmpRegister;
 }
 
 // Printing related
@@ -224,7 +224,7 @@ static void print_str_or_null(int size, char *str)
         printf("%s", str);
 }
 
-void print_data(Data *data)
+void print_register(Register *data)
 {
     if (!data)
         return;
@@ -252,7 +252,7 @@ void print_data(Data *data)
 
 // Search related
 
-static int check_match(Data *data, SearchField field)
+static int check_match(Register *data, SearchField field)
 {
     if (strcmp(field.name, "codEstacao") == 0)
         return data->stationCode == atoi(field.value);
@@ -274,31 +274,31 @@ static int check_match(Data *data, SearchField field)
     return 0;
 }
 
-Data *check_data_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *isMatch)
+Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *isMatch)
 {
-    Data *tmpData = NULL;
+    Register *tmpRegister = NULL;
     *isMatch = 1;
 
-    if (!(tmpData = read_data(binFile)))
+    if (!(tmpRegister = read_register(binFile)))
         return NULL;
 
-    if (tmpData->removed == '1')
+    if (tmpRegister->removed == '1')
     {
-        destroy_data(&tmpData);
+        destroy_register(&tmpRegister);
         *isMatch = 0;
         return NULL;
     }
 
     for (int i = 0; i < pairIterations; i++)
     {
-        if (!check_match(tmpData, filters[i]))
+        if (!check_match(tmpRegister, filters[i]))
         {
             *isMatch = 0;
             break;
         }
     }
 
-    return tmpData;
+    return tmpRegister;
 }
 
 SearchField *get_all_search_fields(int *pairIterations)
@@ -339,17 +339,17 @@ SearchField *get_all_search_fields(int *pairIterations)
 
 // Delete
 
-void remove_data(FILE *binFile)
+void remove_register(FILE *binFile)
 {
     char removed = '1';
 
-    fseek(binFile, -DATA_SIZE, SEEK_CUR);
+    fseek(binFile, -REGISTER_SIZE, SEEK_CUR);
     fwrite(&removed, sizeof(char), 1, binFile);
 }
 
 //
 
-void destroy_data(Data **data)
+void destroy_register(Register **data)
 {
     if (!data || !(*data))
         return;

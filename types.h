@@ -5,8 +5,8 @@
 
 #define EXPECTED_SIZE 300
 
-#define DATA_SIZE 80
 #define HEADER_SIZE 17
+#define REGISTER_SIZE 80
 
 #define TRASH '$'
 
@@ -31,7 +31,7 @@ typedef enum DataStatus
     DATA_FAILURE = 1
 } DataStatus;
 
-typedef struct Data
+typedef struct Register
 {
     char removed;
     int next;
@@ -50,7 +50,7 @@ typedef struct Data
 
     int sizeLineName;
     char *lineName;
-} Data;
+} Register;
 
 typedef struct SearchField
 {
