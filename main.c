@@ -1,14 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
-#include "data.h"
-#include "header.h"
+#include "binFile.h"
 
 #define INPUT_SIZE 64
 
 // n to gostando disso de printar o erro duas vezes nos cases, mas n sei oq fazer
-
-void binary_on_screen(char *fileName);
 
 int main()
 {
@@ -106,8 +103,28 @@ int main()
                 printf("Falha no processamento do arquivo.\n");
             }
             break;
-
+        // deletes registers where (search criteria)
         case '4':
+            if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+            {
+                input = fopen(input1, "rb+");
+                status0(input);
+
+                if (input)
+                {
+                    delete_all_data_where(input, numInput);                    
+
+                    status1(input);
+                    fclose(input);
+                    binary_on_screen(input1);
+                }
+                else
+                {
+                    printf("Falha no processamento do arquivo.\n");
+                }
+            }   
+            break;
+        case '8':
             if(sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
             {
                 input = fopen(input1, "rb+");
@@ -141,32 +158,4 @@ int main()
         fclose(output);
 
     return 0;
-}
-
-void binary_on_screen(char *fileName)
-{
-    FILE *file = NULL;
-
-    if (!fileName || !(file = fopen(fileName, "rb")))
-        return;
-
-    fseek(file, 0, SEEK_END);
-    long totalBytes = ftell(file);
-
-    fseek(file, 0, SEEK_SET);
-    unsigned char *bytesStr = malloc(sizeof(unsigned char) * totalBytes);
-    if(fread(bytesStr, 1, totalBytes, file) != (long unsigned int)totalBytes){
-        printf("Unable to read file\n");
-        free(bytesStr);
-        return;
-    }
-
-    unsigned long byteSum = 0;
-    for (long i = 0; i < totalBytes; i++)
-        byteSum += (unsigned long)bytesStr[i];
-
-    printf("%lf\n", (byteSum / 100.0));
-
-    free(bytesStr);
-    fclose(file);
 }
