@@ -186,11 +186,11 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
     if (!binFile)
         return DATA_FAILURE;
 
-    if (fseek(binFile, HEADER_SIZE, SEEK_SET))
-        return DATA_FAILURE;
-
     for (int i = 0; i < iterations; i++)
     {
+        if (fseek(binFile, HEADER_SIZE, SEEK_SET))
+            return DATA_FAILURE;
+
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 

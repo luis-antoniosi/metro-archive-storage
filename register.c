@@ -64,7 +64,7 @@ Register *parse_register(char *buffer)
     {
         tmpRegister->lineName = strdup(token);
         tmpRegister->sizeLineName = strlen(token);
-    } 
+    }
     else
     {
         tmpRegister->lineName = NULL;
@@ -322,15 +322,22 @@ SearchField *get_all_search_fields(int *pairIterations)
             strcpy(filters[j].name, token);
 
         token = strtok(NULL, " \n\r");
-        if (token && token[0] == '\"') // checking if token (field's value) has quotes, like "Luz" instead of Luz
+        if (token) 
         {
-            char *insideQuotes = strtok(token + 1, "\"");
-            if (insideQuotes)
+            if (token[0] == '\"') // checking if token (field's value) has quotes, like "Luz" instead of Luz
+            {
+                char *insideQuotes = token + 1;
+
+                char *closingQuote = strchr(insideQuotes, '\"');
+                if (closingQuote)
+                    *closingQuote = '\0';
+
                 strcpy(filters[j].value, insideQuotes);
-        }
-        else if (token)
-        {
-            strcpy(filters[j].value, token);
+            }
+            else
+            {
+                strcpy(filters[j].value, token);
+            }
         }
     }
 
