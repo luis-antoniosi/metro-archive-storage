@@ -1,6 +1,6 @@
 CC	:=	gcc
 CFLAGS	:=	-Wall -Wextra -Og -march=native -MMD -g
-TARGET	:=	programaTrab
+TARGET	:=	main
 SRCS	:=	$(wildcard *.c)
 OBJS	:=	$(SRCS:.c=.o)
 DEPS	:=	$(OBJS:.o=.d)
