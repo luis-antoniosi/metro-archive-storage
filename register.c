@@ -339,6 +339,9 @@ SearchField *get_all_search_fields(int *pairIterations)
                 strcpy(filters[j].value, token);
             }
         }
+
+        if (strcmp(filters[j].value, "NULO") == 0) // checking if the value is NULL
+            strcpy(filters[j].value, "-1");
     }
 
     return filters;
