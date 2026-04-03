@@ -352,30 +352,35 @@ static int check_match(Register *data, SearchField field)
  *
  * @return Register* Pointer to the read register or NULL at EOF.
  */
-Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *isMatch)
+Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations)
 {
     Register *tmpRegister = NULL;
-    *isMatch = 1;
 
-    if (!(tmpRegister = read_register(binFile)))
-        return NULL;
-
-    if (tmpRegister->removed == '1')
+    while ((tmpRegister = read_register(binFile))) // this loop skips any removed registers
     {
-        destroy_register(&tmpRegister);
-        *isMatch = 0;
-    }
-
-    for (int i = 0; i < pairIterations; i++)
-    {
-        if (!check_match(tmpRegister, filters[i]))
+        if (tmpRegister->removed == '1')
         {
-            *isMatch = 0;
-            break;
+            destroy_register(&tmpRegister);
+            continue;
         }
+
+        int match = 1;
+        for (int i = 0; i < pairIterations; i++)
+        {
+            if (!check_match(tmpRegister, filters[i]))
+            {
+                match = 0;
+                break;
+            }
+        }
+
+        if (match)
+            return tmpRegister;
+
+        destroy_register(&tmpRegister);
     }
 
-    return tmpRegister;
+    return NULL;
 }
 
 /**
@@ -436,38 +441,115 @@ SearchField *get_all_search_fields(int *pairIterations)
 
 /**
  * @brief removes a register by setting the removed flag and pushing on the RRN stack
- * 
+ *
  * @param binFile Open binary file
  */
 void remove_register(FILE *binFile)
 {
     char removed = '1';
 
-    //rewind to start of register
+    // rewind to start of register
     fseek(binFile, -REGISTER_SIZE, SEEK_CUR);
     int registerStart = ftell(binFile);
 
-    int removed_rrn = (registerStart - HEADER_SIZE)/REGISTER_SIZE;
+    int removedRRN = (registerStart - HEADER_SIZE) / REGISTER_SIZE;
 
-    //writes the removed flag
+    // writes the removed flag
     fwrite(&removed, sizeof(char), 1, binFile);
-    int registerNextPosition = ftell(binFile);
-    
-    //seek top position and read value
+
+    // seek top position and read value
     fseek(binFile, sizeof(char), SEEK_SET);
     int headerTopPosition = ftell(binFile);
-    int topValue;
-    fread(&topValue, sizeof(int), 1, binFile);
-    
-    //write removed register byte offset in the header top field
-    fseek(binFile, headerTopPosition, SEEK_SET);
-    fwrite(&removed_rrn, sizeof(int), 1, binFile);
+    int topValue = 0;
+    if (fread(&topValue, sizeof(int), 1, binFile) != 1)
+        return;
 
-    //update the "next" field of the register to old top value
-    fseek(binFile, registerNextPosition, SEEK_SET);
+    // write removed register byte offset in the header top field
+    fseek(binFile, headerTopPosition, SEEK_SET);
+    fwrite(&removedRRN, sizeof(int), 1, binFile);
+
+    // update the "next" field of the register to old top value
+    fseek(binFile, registerStart + 1, SEEK_SET);
     fwrite(&topValue, sizeof(int), 1, binFile);
 
     return;
+}
+
+DataStatus update_station_counts(FILE *binFile, Header *header)
+{
+    fseek(binFile, HEADER_SIZE, SEEK_SET);
+
+    char **seenStations = malloc(EXPECTED_SIZE * sizeof(char *));
+    Pair *seenPairs = malloc(EXPECTED_SIZE * sizeof(Pair));
+
+    if (!seenStations || !seenPairs || !header)
+    {
+        free(seenStations);
+        free(seenPairs);
+        return DATA_FAILURE;
+    }
+
+    int numStations = 0, numPairStations = 0;
+    Register *tmpRegister = NULL;
+    while ((tmpRegister = read_register(binFile)))
+    {
+        if (tmpRegister->removed == '1')
+        {
+            destroy_register(&tmpRegister);
+            continue;
+        }
+
+        if (tmpRegister->stationName)
+        {
+            int foundName = 0;
+            for (int i = 0; i < numStations; i++)
+            {
+                if (strcmp(seenStations[i], tmpRegister->stationName) == 0)
+                {
+                    foundName = 1;
+                    break;
+                }
+            }
+
+            if (!foundName)
+                seenStations[numStations++] = strdup(tmpRegister->stationName);
+        }
+
+        if (tmpRegister->nextStationCode != -1)
+        {
+            int foundPair = 0;
+            // impossibilitating cases like (1, 2) != (2, 1)
+            int first = (tmpRegister->stationCode < tmpRegister->nextStationCode) ? tmpRegister->stationCode : tmpRegister->nextStationCode;
+            int scnd = (tmpRegister->stationCode < tmpRegister->nextStationCode) ? tmpRegister->nextStationCode : tmpRegister->stationCode;
+            for (int i = 0; i < numPairStations; i++)
+            {
+                if (seenPairs[i].stationCode == first && seenPairs[i].nextStationCode == scnd)
+                {
+                    foundPair = 1;
+                    break;
+                }
+            }
+
+            if (!foundPair)
+            {
+                seenPairs[numPairStations].stationCode = first;
+                seenPairs[numPairStations].nextStationCode = scnd;
+                numPairStations++;
+            }
+        }
+
+        destroy_register(&tmpRegister);
+    }
+
+    header->numStations = numStations;
+    header->numPairStations = numPairStations;
+
+    for (int i = 0; i < numStations; i++)
+        free(seenStations[i]);
+    free(seenStations);
+    free(seenPairs);
+
+    return DATA_SUCCESS;
 }
 
 //

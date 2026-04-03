@@ -53,11 +53,10 @@ SearchField *get_all_search_fields(int *pairIterations);
  * @param binFile Pointer to the binary file
  * @param filters array containing the search filters
  * @param pairInterations Number of filters in the array
- * @param isMatch return pointer. 1 if the register pass through all the filters, 0 if not
  *
  * @return Register* Pointer to the read register or NULL at EOF.
  */
-Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *isMatch);
+Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations);
 
 /**
  * @brief Prints a single Register
@@ -65,6 +64,8 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
  * @param data Pointer to the register
  */
 void print_register(Register *Register);
+
+DataStatus update_station_counts(FILE *binFile, Header *header);
 
 /**
  * @brief free the memory of a register

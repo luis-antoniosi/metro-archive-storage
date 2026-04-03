@@ -20,9 +20,13 @@ Header *create_header();
  * @param file File that the header will be written to
  * @param header header to be written
  *
- * @return int returns HEADER_SUCESS if sucesseful or HEADER_FAILURE if not sucesseful
+ * @return int returns HEADER_SUCCESS if sucesseful or HEADER_FAILURE if not sucesseful
  */
-int write_header(FILE *file, Header *header);
+HeaderStatus write_header(FILE *file, Header *header);
+
+Header *read_header(FILE *file);
+
+HeaderStatus update_header_count(FILE *file);
 
 /**
  * @brief writes a '0' char to the beggining of a file

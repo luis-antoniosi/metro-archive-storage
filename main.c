@@ -36,10 +36,10 @@ int main()
         {
             input = fopen(input1, "r");
             output = fopen(input2, "wb+");
-            status0(output);
 
             if (write_bin_file(input, output) == DATA_SUCCESS)
             {
+                status0(output);                
                 fclose(input);
 
                 status1(output);
@@ -112,10 +112,10 @@ int main()
         if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
         {
             input = fopen(input1, "rb+");
-            status0(input);
 
             if (input)
             {
+                status0(input);
                 delete_all_data_where(input, numInput);
 
                 status1(input);

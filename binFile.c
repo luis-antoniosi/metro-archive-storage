@@ -36,7 +36,7 @@ Header *create_header()
  *
  * @return int returns HEADER_SUCESS if sucesseful or HEADER_FAILURE if not sucesseful
  */
-int write_header(FILE *file, Header *header)
+HeaderStatus write_header(FILE *file, Header *header)
 {
     if (!file || !header)
         return HEADER_FAILURE;
@@ -49,6 +49,48 @@ int write_header(FILE *file, Header *header)
     fwrite(&header->nextRRN, sizeof(int), 1, file);
     fwrite(&header->numStations, sizeof(int), 1, file);
     fwrite(&header->numPairStations, sizeof(int), 1, file);
+
+    return HEADER_SUCCESS;
+}
+
+Header *read_header(FILE *file)
+{
+    if (!file)
+        return NULL;
+
+    if (fseek(file, 0, SEEK_SET))
+        return NULL;
+
+    Header *header = create_header();
+
+    if (fread(&header->status, sizeof(char), 1, file) != 1 ||
+        fread(&header->top, sizeof(int), 1, file) != 1 ||
+        fread(&header->nextRRN, sizeof(int), 1, file) != 1 ||
+        fread(&header->numStations, sizeof(int), 1, file) != 1 ||
+        fread(&header->numPairStations, sizeof(int), 1, file) != 1)
+    {
+        printf("Unable to read header.\n");
+        free(header);
+        return NULL;
+    }
+
+    return header;
+}
+
+HeaderStatus update_header_count(FILE *file)
+{
+    Header *tmpHeader = read_header(file);
+    if (!tmpHeader)
+        return HEADER_FAILURE;
+
+    if (update_station_counts(file, tmpHeader) == DATA_FAILURE)
+    {
+        free(tmpHeader);
+        return HEADER_FAILURE;
+    }
+
+    write_header(file, tmpHeader);
+    free(tmpHeader);
 
     return HEADER_SUCCESS;
 }
@@ -97,18 +139,14 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
         return DATA_FAILURE;
 
     Header *tempHeader = create_header();
-    char **seenStations = malloc(EXPECTED_SIZE * sizeof(char *));
-    Pair *seenPairs = malloc(EXPECTED_SIZE * sizeof(Pair));
 
     char buffer[BUF_SIZE];
 
-    int numData = 0, numStations = 0, numPairStations = 0;
+    int numData = 0;
 
-    if (!tempHeader || !seenStations || !seenPairs || write_header(outputFile, tempHeader) == DATA_FAILURE || !fgets(buffer, BUF_SIZE, inputFile))
+    if (!tempHeader || write_header(outputFile, tempHeader) == HEADER_FAILURE || !fgets(buffer, BUF_SIZE, inputFile))
     {
         free(tempHeader);
-        free(seenStations);
-        free(seenPairs);
         return DATA_FAILURE;
     }
 
@@ -121,45 +159,6 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
         newRegister->removed = '0';
         newRegister->next = tempHeader->top;
 
-        if (newRegister->stationName)
-        {
-            int foundName = 0;
-            for (int i = 0; i < numStations; i++)
-            {
-                if (strcmp(seenStations[i], newRegister->stationName) == 0)
-                {
-                    foundName = 1;
-                    break;
-                }
-            }
-
-            if (!foundName)
-                seenStations[numStations++] = strdup(newRegister->stationName);
-        }
-
-        if (newRegister->nextStationCode != -1)
-        {
-            int foundPair = 0;
-            // impossibilitating cases like (1, 2) != (2, 1)
-            int first = (newRegister->stationCode < newRegister->nextStationCode) ? newRegister->stationCode : newRegister->nextStationCode;
-            int scnd = (newRegister->stationCode < newRegister->nextStationCode) ? newRegister->nextStationCode : newRegister->stationCode;
-            for (int i = 0; i < numPairStations; i++)
-            {
-                if (seenPairs[i].stationCode == first && seenPairs[i].nextStationCode == scnd)
-                {
-                    foundPair = 1;
-                    break;
-                }
-            }
-
-            if (!foundPair)
-            {
-                seenPairs[numPairStations].stationCode = first;
-                seenPairs[numPairStations].nextStationCode = scnd;
-                numPairStations++;
-            }
-        }
-
         write_register(outputFile, newRegister);
         numData++;
 
@@ -167,15 +166,12 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
     }
 
     tempHeader->nextRRN = numData;
-    tempHeader->numStations = numStations;
-    tempHeader->numPairStations = numPairStations;
+
+    if (update_station_counts(outputFile, tempHeader) == DATA_FAILURE)
+        return DATA_FAILURE;
 
     write_header(outputFile, tempHeader);
 
-    for (int i = 0; i < numStations; i++)
-        free(seenStations[i]);
-    free(seenStations);
-    free(seenPairs);
     free(tempHeader);
 
     return DATA_SUCCESS;
@@ -232,15 +228,14 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         SearchField *filters = get_all_search_fields(&pairIterations);
 
         Register *tmpRegister = NULL;
-        int isMatch = 1, anyMatches = 0;
+        int anyMatches = 0;
 
-        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
+        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
         {
-            if (isMatch && tmpRegister) {
-                print_register(tmpRegister);
-                anyMatches = 1;
-            } 
+            print_register(tmpRegister);
             
+            anyMatches = 1;
+
             destroy_register(&tmpRegister);
         }
 
@@ -274,20 +269,19 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
         SearchField *filters = get_all_search_fields(&pairIterations);
 
         Register *tmpRegister = NULL;
-        int isMatch = 1;
-        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
+        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
         {
-            if (isMatch && tmpRegister)
-            {
-                remove_register(binFile);
-                fseek(binFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
-            }
+            remove_register(binFile);
+            fseek(binFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
 
             destroy_register(&tmpRegister);
         }
 
         free(filters);
     }
+
+    if (update_header_count(binFile) == HEADER_FAILURE)
+        return DATA_FAILURE;
 
     return DATA_SUCCESS;
 }
