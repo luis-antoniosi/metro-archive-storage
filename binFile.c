@@ -196,8 +196,6 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
             destroy_register(&tmpRegister);
         }
 
-        printf("\n");
-
         free(filters);
     }
 
