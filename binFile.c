@@ -65,7 +65,6 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
     if (!inputFile || !outputFile)
         return DATA_FAILURE;
 
-    DataStatus result = DATA_FAILURE;
     Header *tempHeader = create_header();
     char **seenStations = malloc(EXPECTED_SIZE * sizeof(char *));
     Pair *seenPairs = malloc(EXPECTED_SIZE * sizeof(Pair));
@@ -74,12 +73,13 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 
     int numData = 0, numStations = 0, numPairStations = 0;
 
-    // if (!tempHeader || !seenStations || !seenPairs || write_header(outputFile, tempHeader) == DATA_FAILURE || !fgets(buffer, BUF_SIZE, inputFile))
-    // {
-    //     free(tempHeader);
-    //     free(seenStations);
-    //     free(seenPairs);
-    // }
+    if (!tempHeader || !seenStations || !seenPairs || write_header(outputFile, tempHeader) == DATA_FAILURE || !fgets(buffer, BUF_SIZE, inputFile))
+    {
+        free(tempHeader);
+        free(seenStations);
+        free(seenPairs);
+        return DATA_FAILURE;
+    }
 
     while (fgets(buffer, sizeof(buffer), inputFile))
     {
@@ -109,7 +109,7 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
         if (newRegister->nextStationCode != -1)
         {
             int foundPair = 0;
-            // impossibilitating cases like (1, 2) !=    (2, 1)
+            // impossibilitating cases like (1, 2) != (2, 1)
             int first = (newRegister->stationCode < newRegister->nextStationCode) ? newRegister->stationCode : newRegister->nextStationCode;
             int scnd = (newRegister->stationCode < newRegister->nextStationCode) ? newRegister->nextStationCode : newRegister->stationCode;
             for (int i = 0; i < numPairStations; i++)
@@ -139,24 +139,15 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
     tempHeader->numStations = numStations;
     tempHeader->numPairStations = numPairStations;
 
-    if (write_header(outputFile, tempHeader) == HEADER_FAILURE)
-        goto clean;
+    write_header(outputFile, tempHeader);
 
-    result = DATA_SUCCESS;
-
-// there were some options:
-// making another function that received three paramaters and repeating that each time something failed (boring),
-// just repeating free() three times in a row for each failure (boring),
-// big if (ugly),
-// or... adding a goto (cool and fun)
-clean:
     for (int i = 0; i < numStations; i++)
         free(seenStations[i]);
     free(seenStations);
     free(seenPairs);
     free(tempHeader);
 
-    return result;
+    return DATA_SUCCESS;
 }
 
 // printing related
