@@ -186,20 +186,15 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         SearchField *filters = get_all_search_fields(&pairIterations);
 
         Register *tmpRegister = NULL;
-        int isMatch = 1, anyMatches = 0;
+        int isMatch = 1;
 
         while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
         {
-            if (isMatch && tmpRegister) {
+            if (isMatch && tmpRegister) 
                 print_register(tmpRegister);
-                anyMatches = 1;
-            }
 
             destroy_register(&tmpRegister);
         }
-
-        if (!anyMatches)
-            printf("Registro inexistente.\n");
 
         printf("\n");
 
