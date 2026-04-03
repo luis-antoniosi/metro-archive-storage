@@ -22,7 +22,7 @@ int main()
     do
     {
         if (!fgets(buffer, BUF_SIZE, stdin))
-            break;  
+            break;
 
         if (sscanf(buffer, "%c", &option) != 1)
         {
@@ -90,7 +90,7 @@ int main()
                 if (input)
                 {
                     print_all_data_where(input, numInput);
-                    
+
                     fclose(input);
                 }
                 else
@@ -112,8 +112,7 @@ int main()
 
                 if (input)
                 {
-                    delete_all_data_where(input, numInput);                    
-
+                    delete_all_data_where(input, numInput);
                     status1(input);
                     fclose(input);
                     binary_on_screen(input1);
@@ -122,17 +121,16 @@ int main()
                 {
                     printf("Falha no processamento do arquivo.\n");
                 }
-            }   
+            }
             break;
         case '8':
-            if(sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+            if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
             {
                 input = fopen(input1, "rb+");
                 status0(input);
 
-                if(input)
+                if (input)
                 {
-
                 }
                 else
                 {
@@ -144,9 +142,9 @@ int main()
                 printf("Falha no processamento do arquivo.\n");
             }
 
-            //colocar status 1 ao fechar o arquivo
+            // colocar status 1 ao fechar o arquivo
             break;
-            
+
         default:
             break;
         }

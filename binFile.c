@@ -9,7 +9,7 @@
 
 /**
  * @brief Creates a hearder struct and sets it with default values
- * 
+ *
  * @return Header* pointer to the dinamically alocated Header
  */
 Header *create_header()
@@ -30,10 +30,10 @@ Header *create_header()
 
 /**
  * @brief writes Header to a file
- * 
+ *
  * @param file File that the header will be written to
  * @param header header to be written
- * 
+ *
  * @return int returns HEADER_SUCESS if sucesseful or HEADER_FAILURE if not sucesseful
  */
 int write_header(FILE *file, Header *header)
@@ -55,7 +55,7 @@ int write_header(FILE *file, Header *header)
 
 /**
  * @brief writes a '0' char to the beggining of a file
- * 
+ *
  * @param file file that the '0' will be written
  */
 void status0(FILE *file)
@@ -69,7 +69,7 @@ void status0(FILE *file)
 
 /**
  * @brief writes a '1' char to the beggining of a file
- * 
+ *
  * @param file file that the '1' will be written
  */
 void status1(FILE *file)
@@ -85,10 +85,10 @@ void status1(FILE *file)
 
 /**
  * @brief writes a binary file with registers from a input .csv file
- * 
+ *
  * @param inputFile Open input .csv file in "r" mode
  * @param outputFile Open output binary file in "wb+" mode
- * 
+ *
  * @return DATA_SUCESS if sucesseful or DATA_FAILURE if unsucesseful
  */
 DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
@@ -185,9 +185,9 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 
 /**
  * @brief prints all registers from a binary file
- * 
+ *
  * @param binFile Open binary file
- * 
+ *
  * @return DATA_SUCESS or DATA_FAILURE
  */
 DataStatus print_all_data(FILE *binFile)
@@ -211,11 +211,11 @@ DataStatus print_all_data(FILE *binFile)
 }
 
 /**
- * @brief prints all registers that meets the filters requirements 
- * 
+ * @brief prints all registers that meets the filters requirements
+ *
  * @param binFile Open binary file
  * @param iterations Number of searches
- * 
+ *
  * @return DATA_SUCESS or DATA_FAILURE
  */
 DataStatus print_all_data_where(FILE *binFile, int iterations)
@@ -236,7 +236,7 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
 
         while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
         {
-            if (isMatch && tmpRegister) 
+            if (isMatch && tmpRegister)
                 print_register(tmpRegister);
 
             destroy_register(&tmpRegister);
@@ -262,7 +262,7 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
     {
         if (fseek(binFile, HEADER_SIZE, SEEK_SET))
             return DATA_FAILURE;
-        
+
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
@@ -273,7 +273,7 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
             if (isMatch && tmpRegister)
             {
                 remove_register(binFile);
-                fseek(binFile, REGISTER_SIZE - 1, SEEK_CUR);
+                fseek(binFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
             }
 
             destroy_register(&tmpRegister);
@@ -289,7 +289,7 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
 
 /**
  * @brief Prints a checksum to validate a binary file
- * 
+ *
  * @param fileName String containing the name of the binary file
  */
 void binary_on_screen(char *fileName)
