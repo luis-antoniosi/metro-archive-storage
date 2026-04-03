@@ -1,11 +1,29 @@
-#ifndef DATA_H
-#define DATA_H
-
-#include <stdio.h>
+#ifndef TYPES_H
+#define TYPES_H
 
 #define BUF_SIZE 256
-#define DATA_SIZE 80
+
+#define EXPECTED_SIZE 300
+
+#define HEADER_SIZE 17
+#define REGISTER_SIZE 80
+
 #define TRASH '$'
+
+typedef enum HeaderStatus
+{
+    HEADER_SUCCESS = 0,
+    HEADER_FAILURE = 1
+} HeaderStatus;
+
+typedef struct Header
+{
+    char status;
+    int top;
+    int nextRRN;
+    int numStations;
+    int numPairStations;
+} Header;
 
 typedef enum DataStatus
 {
@@ -13,7 +31,7 @@ typedef enum DataStatus
     DATA_FAILURE = 1
 } DataStatus;
 
-typedef struct Data
+typedef struct Register
 {
     char removed;
     int next;
@@ -32,7 +50,7 @@ typedef struct Data
 
     int sizeLineName;
     char *lineName;
-} Data;
+} Register;
 
 typedef struct SearchField
 {
@@ -40,14 +58,10 @@ typedef struct SearchField
     char value[BUF_SIZE];
 } SearchField;
 
-Data *tokenize(char *buffer);
-
-void write_data(FILE *binFile, Data *data);
-DataStatus write_bin_file(FILE *inputFile, FILE *outputFile);
-
-DataStatus print_all_data(FILE *binFile);
-DataStatus print_all_data_where(FILE *binFile, int iterations);
-
-void destroy_data(Data **data);
+typedef struct Pair
+{
+    int stationCode;
+    int nextStationCode;
+} Pair;
 
 #endif
