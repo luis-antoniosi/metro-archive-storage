@@ -116,6 +116,10 @@ int main()
                 if(input)
                 {
 
+                    
+
+                    status1(input);
+                    fclose(input);
                 }
                 else
                 {
