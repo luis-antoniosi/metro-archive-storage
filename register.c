@@ -48,7 +48,7 @@ static char *custom_strtok(char **buff, char delim)
  */
 static int check_for_null(char *str)
 {
-    return !str || str[0] == '\0' || strcspn(str, "\n") == 0 ? -1 : atoi(str);
+    return !str || str[0] == '\0' || strcspn(str, "\r\n") == 0 ? -1 : atoi(str);
 }
 
 /**
@@ -427,6 +427,9 @@ SearchField *get_all_search_fields(int *pairIterations)
                 strcpy(filters[j].value, token);
             }
         }
+
+        if (strcmp(filters[j].value, "NULO") == 0) // checking if the value is NULL
+            strcpy(filters[j].value, "-1");
     }
 
     return filters;

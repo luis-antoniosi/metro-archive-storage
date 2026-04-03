@@ -236,7 +236,7 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
 
         while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations, &isMatch)))
         {
-            if (isMatch && tmpRegister)
+            if (isMatch && tmpRegister) 
                 print_register(tmpRegister);
 
             destroy_register(&tmpRegister);
