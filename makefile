@@ -2,10 +2,14 @@ CC	:=	gcc
 CFLAGS	:=	-Wall -Wextra -Og -march=native -MMD -g
 TARGET	:=	main
 SRCS	:=	$(wildcard *.c)
+HDRS	:=	$(wildcard *.h)
 OBJS	:=	$(SRCS:.c=.o)
 DEPS	:=	$(OBJS:.o=.d)
 
-.PHONY: all clean run
+DIR		:=	$(notdir $(abspath .))
+ZIPFILE	:=	$(DIR).zip
+
+.PHONY: all clean run zip
 
 all: $(TARGET)
 
@@ -21,4 +25,7 @@ run: $(TARGET)
 	./$(TARGET)
 
 clean:
-	rm -f $(OBJS) $(TARGET) $(DEPS)
+	rm -f $(OBJS) $(TARGET) $(ZIPFILE) $(DEPS)
+
+zip: 
+	zip $(ZIPFILE) $(SRCS) $(HDRS) makefile

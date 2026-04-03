@@ -459,13 +459,12 @@ void remove_register(FILE *binFile)
 
     // seek top position and read value
     fseek(binFile, sizeof(char), SEEK_SET);
-    int headerTopPosition = ftell(binFile);
     int topValue = 0;
     if (fread(&topValue, sizeof(int), 1, binFile) != 1)
         return;
 
     // write removed register byte offset in the header top field
-    fseek(binFile, headerTopPosition, SEEK_SET);
+    fseek(binFile, sizeof(char), SEEK_SET);
     fwrite(&removedRRN, sizeof(int), 1, binFile);
 
     // update the "next" field of the register to old top value
