@@ -47,7 +47,7 @@ static char *custom_strtok(char **buff, char delim)
  */
 static int check_for_null(char *str)
 {
-    return !str || str[0] == '\0' || strcspn(str, "\r\n") == 0 ? -1 : atoi(str);
+    return !str || str[0] == '\0' || strcspn(str, "\r\n") == 0 || strcmp(str, "NULO") == 0 ? -1 : atoi(str);
 }
 
 /**
@@ -547,6 +547,120 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
         free(seenStations[i]);
     free(seenStations);
     free(seenPairs);
+
+    return DATA_SUCCESS;
+}
+
+//
+
+char *check_quotes(char *str)
+{
+    if (str)
+    {
+        if (str[0] == '\"')
+        {
+            char *insideQuotes = str + 1;
+            char *closingQuote = strchr(insideQuotes, '\"');
+            if (closingQuote)
+                *closingQuote = '\0';
+
+            return insideQuotes;
+        }
+        else
+        {
+            return str;
+        }
+    }
+
+    return NULL;
+}
+
+Register *input_register()
+{
+    char buff[BUF_SIZE];
+    Register *tmpRegister = malloc(sizeof(Register));
+    if (!tmpRegister)
+        return NULL;
+
+    if (!fgets(buff, BUF_SIZE, stdin))
+        return NULL;
+
+    tmpRegister->removed = '0';
+    tmpRegister->next = -1;
+
+    char *token = strtok(buff, " \n\r");
+
+    tmpRegister->stationCode = check_for_null(token);
+
+    token = check_quotes(strtok(NULL, " \n\r"));
+    if (token && token[0] != '\0')
+    {
+        tmpRegister->sizeStationName = strlen(token);
+        tmpRegister->stationName = strdup(token);
+    }
+    else
+    {
+        tmpRegister->stationName = NULL;
+        tmpRegister->sizeStationName = 0;
+    }
+
+    token = strtok(NULL, " \n\r");
+    tmpRegister->lineCode = check_for_null(token);
+
+    token = check_quotes(strtok(NULL, " \n\r"));
+    if (token && token[0] != '\0')
+    {
+        tmpRegister->sizeLineName = strlen(token);
+        tmpRegister->lineName = strdup(token);
+    }
+    else
+    {
+        tmpRegister->lineName = NULL;
+        tmpRegister->sizeLineName = 0;
+    }
+
+    token = strtok(NULL, " \n\r");
+    tmpRegister->nextStationCode = check_for_null(token);
+
+    token = strtok(NULL, " \n\r");
+    tmpRegister->distNextStation = check_for_null(token);
+
+    token = strtok(NULL, " \n\r");
+    tmpRegister->codeIntegLine = check_for_null(token);
+
+    token = strtok(NULL, " \n\r");
+    tmpRegister->codeIntegStation = check_for_null(token);
+
+    return tmpRegister;
+}
+
+DataStatus insert_register(FILE *binFile, Register *data, Header *header)
+{
+    if (!binFile || !data || !header)
+        return DATA_FAILURE;
+
+    int nextPos = 0, nextPosReplacement = 0;
+
+    if (header->top != -1)
+    {
+        nextPos = header->top * REGISTER_SIZE;
+        fseek(binFile, nextPos + HEADER_SIZE + sizeof(char), SEEK_SET); // skipping "removed"
+        if (fread(&nextPosReplacement, sizeof(int), 1, binFile) != 1)
+            return DATA_FAILURE;
+
+        header->top = nextPosReplacement;
+    }
+    else
+    {
+        nextPos = header->nextRRN * REGISTER_SIZE;
+        nextPosReplacement = header->nextRRN + 1;
+
+        header->nextRRN = nextPosReplacement;
+    }
+
+    fseek(binFile, nextPos + HEADER_SIZE, SEEK_SET);
+        
+    write_register(binFile, data);
 
     return DATA_SUCCESS;
 }

@@ -233,7 +233,7 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
         {
             print_register(tmpRegister);
-            
+
             anyMatches = 1;
 
             destroy_register(&tmpRegister);
@@ -282,6 +282,38 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
 
     if (update_header_count(binFile) == HEADER_FAILURE)
         return DATA_FAILURE;
+
+    return DATA_SUCCESS;
+}
+
+//
+
+DataStatus insert_data(FILE *binFile, int iterations)
+{
+    if (!binFile)
+        return DATA_FAILURE;
+
+    for (int i = 0; i < iterations; i++)
+    {
+        Register *tmpRegister = NULL;
+        tmpRegister = input_register();
+
+        if (tmpRegister)
+        {
+            Header *currHeader = read_header(binFile);
+            insert_register(binFile, tmpRegister, currHeader);
+
+            write_header(binFile, currHeader);
+            if (update_header_count(binFile) == HEADER_FAILURE)
+                return DATA_FAILURE;
+
+            destroy_register(&tmpRegister);
+            free(currHeader);
+        }
+    }
+
+    // if (update_header_count(binFile) == HEADER_FAILURE)
+    //     return DATA_FAILURE;
 
     return DATA_SUCCESS;
 }

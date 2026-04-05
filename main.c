@@ -130,6 +130,27 @@ int main()
             }
         }
         break;
+    case '5':
+        if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+        {
+            input = fopen(input1, "rb+");
+
+            if (input)
+            {
+                status0(input);
+                insert_data(input, numInput);
+
+                status1(input);
+                fclose(input);
+                input = NULL;
+
+                binary_on_screen(input1);
+            }
+            else
+            {
+                printf("Falha no processamento do arquivo.\n");
+            }
+        }
     case '8':
         break;
 

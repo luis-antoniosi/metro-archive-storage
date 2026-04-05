@@ -8,6 +8,8 @@
 #define HEADER_SIZE 17
 #define REGISTER_SIZE 80
 
+#define REGISTER_PARAM 8
+
 #define TRASH '$'
 
 typedef enum HeaderStatus

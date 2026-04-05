@@ -67,6 +67,9 @@ void print_register(Register *Register);
 
 DataStatus update_station_counts(FILE *binFile, Header *header);
 
+Register *input_register();
+DataStatus insert_register(FILE *binFile, Register *data, Header *header);
+
 /**
  * @brief free the memory of a register
  *
