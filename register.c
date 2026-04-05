@@ -339,6 +339,28 @@ static int check_match(Register *data, SearchField field)
     return 0;
 }
 
+static char *check_quotes(char *str)
+{
+    if (str)
+    {
+        if (str[0] == '\"')
+        {
+            char *insideQuotes = str + 1;
+            char *closingQuote = strchr(insideQuotes, '\"');
+            if (closingQuote)
+                *closingQuote = '\0';
+
+            return insideQuotes;
+        }
+        else
+        {
+            return str;
+        }
+    }
+
+    return NULL;
+}
+
 /**
  * @brief reads a Register from a file and evaluates if it meets all the serch filters
  *
@@ -411,24 +433,10 @@ SearchField *get_all_search_fields(int *pairIterations)
         if (token) // field's name never has quotes
             strcpy(filters[j].name, token);
 
-        token = strtok(NULL, " \n\r");
+        token = check_quotes(strtok(NULL, " \n\r"));
+
         if (token)
-        {
-            if (token[0] == '\"') // checking if token (field's value) has quotes, like "Luz" instead of Luz
-            {
-                char *insideQuotes = token + 1;
-
-                char *closingQuote = strchr(insideQuotes, '\"');
-                if (closingQuote)
-                    *closingQuote = '\0';
-
-                strcpy(filters[j].value, insideQuotes);
-            }
-            else
-            {
-                strcpy(filters[j].value, token);
-            }
-        }
+            strcpy(filters[j].value, token);
 
         if (strcmp(filters[j].value, "NULO") == 0) // checking if the value is NULL
             strcpy(filters[j].value, "-1");
@@ -553,28 +561,6 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
 
 //
 
-char *check_quotes(char *str)
-{
-    if (str)
-    {
-        if (str[0] == '\"')
-        {
-            char *insideQuotes = str + 1;
-            char *closingQuote = strchr(insideQuotes, '\"');
-            if (closingQuote)
-                *closingQuote = '\0';
-
-            return insideQuotes;
-        }
-        else
-        {
-            return str;
-        }
-    }
-
-    return NULL;
-}
-
 Register *input_register()
 {
     char buff[BUF_SIZE];
@@ -659,7 +645,7 @@ DataStatus insert_register(FILE *binFile, Register *data, Header *header)
     }
 
     fseek(binFile, nextPos + HEADER_SIZE, SEEK_SET);
-        
+
     write_register(binFile, data);
 
     return DATA_SUCCESS;
