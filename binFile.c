@@ -53,6 +53,13 @@ HeaderStatus write_header(FILE *file, Header *header)
     return HEADER_SUCCESS;
 }
 
+/**
+ * @brief reads a Header from a file
+ * 
+ * @param file File that contains the header
+ * 
+ * @return header Populated header struct
+ */
 Header *read_header(FILE *file)
 {
     if (!file)
@@ -77,6 +84,13 @@ Header *read_header(FILE *file)
     return header;
 }
 
+/**
+ * @brief loads, updates and writes the Header with updated numStations and numPairStations
+ * 
+ * @param file Open binary file
+ * 
+ * @return HEADER_SUCESS or HEADER_FAILURE
+ */
 HeaderStatus update_header_count(FILE *file)
 {
     Header *tmpHeader = read_header(file);
@@ -254,6 +268,11 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
 
 /**
  * @brief deletes all registers that meets the filters requirements
+ * 
+ * @param binFile Pointer to the open binary file
+ * @param iterations Number of operations
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
  */
 DataStatus delete_all_data_where(FILE *binFile, int iterations)
 {
@@ -288,6 +307,14 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
 
 //
 
+/**
+ * @brief Inserts multiple registers in a binary file
+ * 
+ * @param binFile Pointer to the open binary file
+ * @param iterations number of insertions
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus insert_data(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -318,6 +345,14 @@ DataStatus insert_data(FILE *binFile, int iterations)
 
 //
 
+/**
+ * @brief Searchs for records that matches a criteria and updates them
+ * 
+ * @param binFile Open binary file
+ * @param iterations number of update operations
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus update_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)

@@ -32,17 +32,13 @@ void write_register(FILE *binFile, Register *data);
  *  the end of the file is reached, a read error ocurr or the allocation fails
  */
 Register *read_register(FILE *binFile);
-void remove_register(FILE *binFile);
 
 /**
- * @brief Reads the search filters typed by the user
+ * @brief Prints a single Register
  *
- * @param pairInterations Pointer to the int variable that the number of filters is assigned to
- *
- * @return SearchField* Allocated array containing the filters in a struct or NULL in case of failure,
- *  the caller must free the dinamically alocated array.
+ * @param data Pointer to the register
  */
-SearchField *get_all_search_fields(int *pairIterations);
+void print_register(Register *Register);
 
 /**
  * @brief reads a Register from a file and evaluates if it meets all the serch filters
@@ -59,17 +55,58 @@ SearchField *get_all_search_fields(int *pairIterations);
 Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations);
 
 /**
- * @brief Prints a single Register
+ * @brief Reads the search filters typed by the user
  *
- * @param data Pointer to the register
+ * @param pairInterations Pointer to the int variable that the number of filters is assigned to
+ *
+ * @return SearchField* Allocated array containing the filters in a struct or NULL in case of failure,
+ *  the caller must free the dinamically alocated array.
  */
-void print_register(Register *Register);
+SearchField *get_all_search_fields(int *pairIterations);
 
+/**
+ * @brief removes a register by setting the removed flag and pushing on the RRN stack
+ *
+ * @param binFile Open binary file
+ */
+void remove_register(FILE *binFile);
+
+/**
+ * @brief Recalculates the numStations and numPairStations count
+ * 
+ * @param binFile Pointer to the open binary file
+ * @param header Pointer to the Header struct that will be updated
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus update_station_counts(FILE *binFile, Header *header);
 
+/**
+ * @brief reads a line from stdin and parses it into a register
+ * 
+ * @return Register* Pointer to the populated register or NULL if fail
+ */
 Register *input_register();
+
+/**
+ * @brief inserts a new register in a binary file
+ * 
+ * @param binFile Open binary file
+ * @param data Register struct to be inserted
+ * @param header File`s header struct
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus insert_register(FILE *binFile, Register *data, Header *header);
 
+/**
+ * @brief updates a binary file with a modified register
+ * 
+ * @param binFile Pointer to the open binary file
+ * @param data Pointer to the register struct
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus update_register(FILE *binFile, Register *data);
 
 /**

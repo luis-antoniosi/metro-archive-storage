@@ -338,6 +338,15 @@ static int check_match(Register *data, SearchField field)
     return 0;
 }
 
+
+/**
+ * @brief remakes a string of more than one word that was parsed by strtok
+ * 
+ * @param str initial string token
+ * @param buff already allocated array of char used to controy the string
+ * 
+ * @return char* Pointer to the reconstructed string or the original string pointer
+ */
 static char *check_quotes(char *str, char *buf)
 {
     if (!str)
@@ -491,6 +500,14 @@ void remove_register(FILE *binFile)
     return;
 }
 
+/**
+ * @brief Recalculates the numStations and numPairStations count
+ * 
+ * @param binFile Pointer to the open binary file
+ * @param header Pointer to the Header struct that will be updated
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus update_station_counts(FILE *binFile, Header *header)
 {
     fseek(binFile, HEADER_SIZE, SEEK_SET);
@@ -570,6 +587,11 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
 
 //
 
+/**
+ * @brief reads a line from stdin and parses it into a register
+ * 
+ * @return Register* Pointer to the populated register or NULL if fail
+ */
 Register *input_register()
 {
     char buff[BUF_SIZE];
@@ -630,6 +652,16 @@ Register *input_register()
     return tmpRegister;
 }
 
+
+/**
+ * @brief inserts a new register in a binary file
+ * 
+ * @param binFile Open binary file
+ * @param data Register struct to be inserted
+ * @param header File`s header struct
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus insert_register(FILE *binFile, Register *data, Header *header)
 {
     if (!binFile || !data || !header)
@@ -664,6 +696,12 @@ DataStatus insert_register(FILE *binFile, Register *data, Header *header)
 //
 
 // essentially the same as check_match, but applies the field instead
+/**
+ * @brief Updates a field of a Register 
+ * 
+ * @param data Pointer to the register to be updated
+ * @param field populated SearchField struct with the field`s name and the new value to be assigned 
+ */
 static DataStatus update_match(Register *data, SearchField field)
 {
     if (strcmp(field.name, "codEstacao") == 0)
@@ -704,6 +742,7 @@ static DataStatus update_match(Register *data, SearchField field)
         data->stationName = strdup(field.value);
         if (!data->stationName)
             return DATA_FAILURE;
+        data->sizeStationName = strlen(data->stationName);
 
         return DATA_SUCCESS;
     }
@@ -715,6 +754,7 @@ static DataStatus update_match(Register *data, SearchField field)
         data->lineName = strdup(field.value);
         if (!data->lineName)
             return DATA_FAILURE;
+        data->sizeLineName = strlen(data->lineName);
 
         return DATA_SUCCESS;
     }
@@ -722,6 +762,14 @@ static DataStatus update_match(Register *data, SearchField field)
     return DATA_FAILURE;
 }
 
+/**
+ * @brief updates a binary file with a modified register
+ * 
+ * @param binFile Pointer to the open binary file
+ * @param data Pointer to the register struct
+ * 
+ * @return DATA_SUCESS or DATA_FAILURE
+ */
 DataStatus update_register(FILE *binFile, Register *data)
 {
     if (!data)
