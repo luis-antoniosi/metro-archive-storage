@@ -5,6 +5,7 @@
 #include "register.h"
 
 // Helper functions are all static since they aren't used outside of this file
+//Only the helper functions are commented because they are not declared in the .h file
 
 // Parsing, writing and reading
 
@@ -50,15 +51,6 @@ static int check_for_null(char *str)
     return !str || str[0] == '\0' || strcspn(str, "\r\n") == 0 || strcmp(str, "NULO") == 0 ? -1 : atoi(str);
 }
 
-/**
- * @brief Parses a delimited string buffer and populates a register
- *
- * This function takes a line of text and splits it by commas.
- *
- * @param buffer Pointer to a string that represents a single record.
- *
- * @return Register* A pointer to the allocated Register or NULL if the allocation fails
- */
 Register *parse_register(char *buffer)
 {
     Register *tmpRegister = malloc(sizeof(Register));
@@ -113,12 +105,6 @@ Register *parse_register(char *buffer)
     return tmpRegister;
 }
 
-/**
- * @brief Writes a Register struct into a binary format
- *
- * @param binFile A pointer to the open binary file
- * @param data A pointer to the struct to be written
- */
 void write_register(FILE *binFile, Register *data)
 {
     long start = ftell(binFile);
@@ -157,14 +143,6 @@ void write_register(FILE *binFile, Register *data)
     }
 }
 
-/**
- * @brief reads a single record from a binary file into a register struct
- *
- * @param binFile A pointer to the open binary file
- *
- * @return Register* Pointer to the dinamically allocated register or NULL if
- *  the end of the file is reached, a read error ocurr or the allocation fails
- */
 Register *read_register(FILE *binFile)
 {
     long start = ftell(binFile);
@@ -275,11 +253,6 @@ static void print_str_or_null(int size, char *str)
         printf("%s", str);
 }
 
-/**
- * @brief Prints a single Register
- *
- * @param data Pointer to the register
- */
 void print_register(Register *data)
 {
     if (!data)
@@ -378,19 +351,6 @@ static char *check_quotes(char *str, char *buf)
     return str;
 }
 
-/**
- * @brief reads a Register from a file and evaluates if it meets all the serch filters
- *
- * The function extracts the next register from the binFile and compares it to a array of filters
- * applying the 'AND' logic.
- *
- * @param binFile Pointer to the binary file
- * @param filters array containing the search filters
- * @param pairInterations Number of filters in the array
- * @param isMatch return pointer. 1 if the register pass through all the filters, 0 if not
- *
- * @return Register* Pointer to the read register or NULL at EOF.
- */
 Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations)
 {
     Register *tmpRegister = NULL;
@@ -422,14 +382,6 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
     return NULL;
 }
 
-/**
- * @brief Reads the search filters typed by the user
- *
- * @param pairInterations Pointer to the int variable that the number of filters is assigned to
- *
- * @return SearchField* Allocated array containing the filters in a struct or NULL in case of failure,
- *  the caller must free the dinamically alocated array.
- */
 SearchField *get_all_search_fields(int *pairIterations)
 {
     char buff[BUF_SIZE];
@@ -465,11 +417,6 @@ SearchField *get_all_search_fields(int *pairIterations)
 
 // Delete
 
-/**
- * @brief removes a register by setting the removed flag and pushing on the RRN stack
- *
- * @param binFile Open binary file
- */
 void remove_register(FILE *binFile)
 {
     char removed = '1';
@@ -500,14 +447,6 @@ void remove_register(FILE *binFile)
     return;
 }
 
-/**
- * @brief Recalculates the numStations and numPairStations count
- * 
- * @param binFile Pointer to the open binary file
- * @param header Pointer to the Header struct that will be updated
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus update_station_counts(FILE *binFile, Header *header)
 {
     fseek(binFile, HEADER_SIZE, SEEK_SET);
@@ -585,13 +524,6 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
     return DATA_SUCCESS;
 }
 
-//
-
-/**
- * @brief reads a line from stdin and parses it into a register
- * 
- * @return Register* Pointer to the populated register or NULL if fail
- */
 Register *input_register()
 {
     char buff[BUF_SIZE];
@@ -652,16 +584,6 @@ Register *input_register()
     return tmpRegister;
 }
 
-
-/**
- * @brief inserts a new register in a binary file
- * 
- * @param binFile Open binary file
- * @param data Register struct to be inserted
- * @param header File`s header struct
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus insert_register(FILE *binFile, Register *data, Header *header)
 {
     if (!binFile || !data || !header)
@@ -762,14 +684,6 @@ static DataStatus update_match(Register *data, SearchField field)
     return DATA_FAILURE;
 }
 
-/**
- * @brief updates a binary file with a modified register
- * 
- * @param binFile Pointer to the open binary file
- * @param data Pointer to the register struct
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus update_register(FILE *binFile, Register *data)
 {
     if (!data)
@@ -800,13 +714,6 @@ DataStatus update_register(FILE *binFile, Register *data)
     return DATA_SUCCESS;
 }
 
-//
-
-/**
- * @brief free the memory of a register
- *
- * @param data double pointer to the register
- */
 void destroy_register(Register **data)
 {
     if (!data || !(*data))

@@ -7,11 +7,6 @@
 
 // Header functions
 
-/**
- * @brief Creates a hearder struct and sets it with default values
- *
- * @return Header* pointer to the dinamically alocated Header
- */
 Header *create_header()
 {
     Header *header = malloc(sizeof(Header));
@@ -28,14 +23,6 @@ Header *create_header()
     return header;
 }
 
-/**
- * @brief writes Header to a file
- *
- * @param file File that the header will be written to
- * @param header header to be written
- *
- * @return int returns HEADER_SUCESS if sucesseful or HEADER_FAILURE if not sucesseful
- */
 HeaderStatus write_header(FILE *file, Header *header)
 {
     if (!file || !header)
@@ -53,13 +40,6 @@ HeaderStatus write_header(FILE *file, Header *header)
     return HEADER_SUCCESS;
 }
 
-/**
- * @brief reads a Header from a file
- * 
- * @param file File that contains the header
- * 
- * @return header Populated header struct
- */
 Header *read_header(FILE *file)
 {
     if (!file)
@@ -84,13 +64,6 @@ Header *read_header(FILE *file)
     return header;
 }
 
-/**
- * @brief loads, updates and writes the Header with updated numStations and numPairStations
- * 
- * @param file Open binary file
- * 
- * @return HEADER_SUCESS or HEADER_FAILURE
- */
 HeaderStatus update_header_count(FILE *file)
 {
     Header *tmpHeader = read_header(file);
@@ -109,11 +82,6 @@ HeaderStatus update_header_count(FILE *file)
     return HEADER_SUCCESS;
 }
 
-/**
- * @brief writes a '0' char to the beggining of a file
- *
- * @param file file that the '0' will be written
- */
 void status0(FILE *file)
 {
     unsigned char status = '0';
@@ -123,11 +91,6 @@ void status0(FILE *file)
     fflush(file);
 }
 
-/**
- * @brief writes a '1' char to the beggining of a file
- *
- * @param file file that the '1' will be written
- */
 void status1(FILE *file)
 {
     unsigned char status = '1';
@@ -137,16 +100,6 @@ void status1(FILE *file)
     fflush(file);
 }
 
-//
-
-/**
- * @brief writes a binary file with registers from a input .csv file
- *
- * @param inputFile Open input .csv file in "r" mode
- * @param outputFile Open output binary file in "wb+" mode
- *
- * @return DATA_SUCESS if sucesseful or DATA_FAILURE if unsucesseful
- */
 DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 {
     if (!inputFile || !outputFile)
@@ -193,13 +146,6 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 
 // printing related
 
-/**
- * @brief prints all registers from a binary file
- *
- * @param binFile Open binary file
- *
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus print_all_data(FILE *binFile)
 {
     if (!binFile)
@@ -220,14 +166,6 @@ DataStatus print_all_data(FILE *binFile)
     return DATA_SUCCESS;
 }
 
-/**
- * @brief prints all registers that meets the filters requirements
- *
- * @param binFile Open binary file
- * @param iterations Number of searches
- *
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus print_all_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -264,16 +202,7 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
     return DATA_SUCCESS;
 }
 
-// delete
-
-/**
- * @brief deletes all registers that meets the filters requirements
- * 
- * @param binFile Pointer to the open binary file
- * @param iterations Number of operations
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
+//delete
 DataStatus delete_all_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -305,16 +234,6 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
     return DATA_SUCCESS;
 }
 
-//
-
-/**
- * @brief Inserts multiple registers in a binary file
- * 
- * @param binFile Pointer to the open binary file
- * @param iterations number of insertions
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus insert_data(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -343,16 +262,6 @@ DataStatus insert_data(FILE *binFile, int iterations)
     return DATA_SUCCESS;
 }
 
-//
-
-/**
- * @brief Searchs for records that matches a criteria and updates them
- * 
- * @param binFile Open binary file
- * @param iterations number of update operations
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
 DataStatus update_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -380,11 +289,6 @@ DataStatus update_data_where(FILE *binFile, int iterations)
     return DATA_SUCCESS;
 }
 
-/**
- * @brief Prints a checksum to validate a binary file
- *
- * @param fileName String containing the name of the binary file
- */
 void binary_on_screen(char *fileName)
 {
     FILE *file = NULL;
