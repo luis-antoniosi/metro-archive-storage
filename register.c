@@ -176,7 +176,8 @@ Register *read_register(FILE *binFile)
     if (tmpRegister->sizeStationName > 0)
     {
         tmpRegister->stationName = malloc(sizeof(char) * (tmpRegister->sizeStationName + 1));
-        if (fread(tmpRegister->stationName, tmpRegister->sizeStationName, 1, binFile) != 1)
+
+        if (tmpRegister->stationName == NULL ||(fread(tmpRegister->stationName, tmpRegister->sizeStationName, 1, binFile) != 1))
         {
             printf("Unable to read station name.\n");
             free(tmpRegister->stationName);
@@ -200,7 +201,7 @@ Register *read_register(FILE *binFile)
     if (tmpRegister->sizeLineName > 0)
     {
         tmpRegister->lineName = malloc(sizeof(char) * (tmpRegister->sizeLineName + 1));
-        if (fread(tmpRegister->lineName, tmpRegister->sizeLineName, 1, binFile) != 1)
+        if (!tmpRegister->lineName || fread(tmpRegister->lineName, tmpRegister->sizeLineName, 1, binFile) != 1)
         {
             printf("Unable to read line name.\n");
             free(tmpRegister->stationName);

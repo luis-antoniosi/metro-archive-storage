@@ -5,8 +5,6 @@
 
 #define INPUT_SIZE 64
 
-// n to gostando disso de printar o erro duas vezes nos cases, mas n sei oq fazer
-
 int main()
 {
     setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console
