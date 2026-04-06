@@ -81,6 +81,8 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations);
 
 DataStatus insert_data(FILE *binFile, int iterations);
 
+DataStatus update_data_where(FILE *binFile, int iterations);
+
 // Print binary
 /**
  * @brief Prints a checksum to validate a binary file

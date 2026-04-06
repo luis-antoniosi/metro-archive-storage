@@ -169,18 +169,17 @@ Register *read_register(FILE *binFile)
 {
     long start = ftell(binFile);
 
-    char removed;
-    if (fread(&removed, 1, 1, binFile) != 1)
-        return NULL;
-
-    if (fseek(binFile, 4, SEEK_CUR))
-        return NULL;
-
     Register *tmpRegister = calloc(1, sizeof(Register));
     if (!tmpRegister)
         return NULL;
 
-    tmpRegister->removed = removed;
+    // these two freads are separate because the -Og flag in gcc affects the order
+    if (fread(&tmpRegister->removed, sizeof(char), 1, binFile) != 1)
+        return NULL;
+
+    if (fread(&tmpRegister->next, sizeof(int), 1, binFile) != 1)
+        return NULL;
+
     // read fixed-size integers
     if (fread(&tmpRegister->stationCode, sizeof(int), 1, binFile) != 1 ||
         fread(&tmpRegister->lineCode, sizeof(int), 1, binFile) != 1 ||
@@ -339,26 +338,35 @@ static int check_match(Register *data, SearchField field)
     return 0;
 }
 
-static char *check_quotes(char *str)
+static char *check_quotes(char *str, char *buf)
 {
-    if (str)
-    {
-        if (str[0] == '\"')
-        {
-            char *insideQuotes = str + 1;
-            char *closingQuote = strchr(insideQuotes, '\"');
-            if (closingQuote)
-                *closingQuote = '\0';
+    if (!str)
+        return NULL;
 
-            return insideQuotes;
-        }
-        else
+    if (str[0] == '\"')
+    {
+        buf[0] = '\0';
+        char *insideQuotes = str + 1;
+
+        while (insideQuotes)
         {
-            return str;
+            char *closingQuotes = strchr(insideQuotes, '\"');
+            if (closingQuotes)
+            {
+                *closingQuotes = '\0';
+                strcat(buf, insideQuotes);
+                return buf;
+            }
+
+            strcat(buf, insideQuotes);
+            strcat(buf, " ");
+            insideQuotes = strtok(NULL, " \n\r");
+            if (!insideQuotes)
+                return buf;
         }
     }
 
-    return NULL;
+    return str;
 }
 
 /**
@@ -433,7 +441,8 @@ SearchField *get_all_search_fields(int *pairIterations)
         if (token) // field's name never has quotes
             strcpy(filters[j].name, token);
 
-        token = check_quotes(strtok(NULL, " \n\r"));
+        char quoteBuf[BUF_SIZE];
+        token = check_quotes(strtok(NULL, " \n\r"), quoteBuf);
 
         if (token)
             strcpy(filters[j].value, token);
@@ -578,7 +587,8 @@ Register *input_register()
 
     tmpRegister->stationCode = check_for_null(token);
 
-    token = check_quotes(strtok(NULL, " \n\r"));
+    char quoteBuf[BUF_SIZE];
+    token = check_quotes(strtok(NULL, " \n\r"), quoteBuf);
     if (token && token[0] != '\0')
     {
         tmpRegister->sizeStationName = strlen(token);
@@ -593,7 +603,7 @@ Register *input_register()
     token = strtok(NULL, " \n\r");
     tmpRegister->lineCode = check_for_null(token);
 
-    token = check_quotes(strtok(NULL, " \n\r"));
+    token = check_quotes(strtok(NULL, " \n\r"), quoteBuf);
     if (token && token[0] != '\0')
     {
         tmpRegister->sizeLineName = strlen(token);
@@ -647,6 +657,97 @@ DataStatus insert_register(FILE *binFile, Register *data, Header *header)
     fseek(binFile, nextPos + HEADER_SIZE, SEEK_SET);
 
     write_register(binFile, data);
+
+    return DATA_SUCCESS;
+}
+
+//
+
+// essentially the same as check_match, but applies the field instead
+static DataStatus update_match(Register *data, SearchField field)
+{
+    if (strcmp(field.name, "codEstacao") == 0)
+    {
+        data->stationCode = atoi(field.value);
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "codLinha") == 0)
+    {
+        data->lineCode = atoi(field.value);
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "codProxEstacao") == 0)
+    {
+        data->nextStationCode = atoi(field.value);
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "distProxEstacao") == 0)
+    {
+        data->distNextStation = atoi(field.value);
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "codLinhaIntegra") == 0)
+    {
+        data->codeIntegLine = atoi(field.value);
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "codEstIntegra") == 0)
+    {
+        data->codeIntegStation = atoi(field.value);
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "nomeEstacao") == 0)
+    {
+        if (data->stationName)
+            free(data->stationName);
+
+        data->stationName = strdup(field.value);
+        if (!data->stationName)
+            return DATA_FAILURE;
+
+        return DATA_SUCCESS;
+    }
+    else if (strcmp(field.name, "nomeLinha") == 0)
+    {
+        if (data->lineName)
+            free(data->lineName);
+
+        data->lineName = strdup(field.value);
+        if (!data->lineName)
+            return DATA_FAILURE;
+
+        return DATA_SUCCESS;
+    }
+
+    return DATA_FAILURE;
+}
+
+DataStatus update_register(FILE *binFile, Register *data)
+{
+    if (!data)
+        return DATA_FAILURE;
+
+    int pairIterations = 0;
+    // not really a search field in this case, but can be repurposed.
+    SearchField *filters = get_all_search_fields(&pairIterations);
+
+    int swapWorked = 1;
+    for (int i = 0; i < pairIterations; i++)
+    {
+        if (update_match(data, filters[i]) == DATA_FAILURE)
+        {
+            swapWorked = 0;
+            break;
+        }
+    }
+
+    if (swapWorked)
+    {
+        fseek(binFile, -REGISTER_SIZE, SEEK_CUR);
+        write_register(binFile, data);
+    }
+
+    free(filters);
 
     return DATA_SUCCESS;
 }

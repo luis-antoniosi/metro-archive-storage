@@ -304,21 +304,46 @@ DataStatus insert_data(FILE *binFile, int iterations)
             insert_register(binFile, tmpRegister, currHeader);
 
             write_header(binFile, currHeader);
-            if (update_header_count(binFile) == HEADER_FAILURE)
-                return DATA_FAILURE;
 
             destroy_register(&tmpRegister);
             free(currHeader);
         }
     }
 
-    // if (update_header_count(binFile) == HEADER_FAILURE)
-    //     return DATA_FAILURE;
+    if (update_header_count(binFile) == HEADER_FAILURE)
+        return DATA_FAILURE;
 
     return DATA_SUCCESS;
 }
 
 //
+
+DataStatus update_data_where(FILE *binFile, int iterations)
+{
+    if (!binFile)
+        return DATA_FAILURE;
+
+    for (int i = 0; i < iterations; i++)
+    {
+        if (fseek(binFile, HEADER_SIZE, SEEK_SET))
+            return DATA_FAILURE;
+
+        int pairIterations = 0;
+        SearchField *filters = get_all_search_fields(&pairIterations);
+
+        Register *tmpRegister = NULL;
+        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
+        {
+            update_register(binFile, tmpRegister);
+
+            destroy_register(&tmpRegister);
+        }
+
+        free(filters);
+    }
+
+    return DATA_SUCCESS;
+}
 
 /**
  * @brief Prints a checksum to validate a binary file

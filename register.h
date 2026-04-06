@@ -70,6 +70,8 @@ DataStatus update_station_counts(FILE *binFile, Header *header);
 Register *input_register();
 DataStatus insert_register(FILE *binFile, Register *data, Header *header);
 
+DataStatus update_register(FILE *binFile, Register *data);
+
 /**
  * @brief free the memory of a register
  *

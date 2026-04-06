@@ -20,12 +20,12 @@ int main()
     char option = '0';
 
     if (!fgets(buffer, BUF_SIZE, stdin))
-        exit(EXIT_FAILURE);
+        return 1;
 
     if (sscanf(buffer, "%c", &option) != 1)
     {
-        printf("Invalid option, use a number\n");
-        exit(EXIT_FAILURE);
+        printf("Option is not a character\n");
+        return 1;
     }
 
     switch (option)
@@ -130,6 +130,7 @@ int main()
             }
         }
         break;
+    // inserts a register
     case '5':
         if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
         {
@@ -151,10 +152,28 @@ int main()
                 printf("Falha no processamento do arquivo.\n");
             }
         }
-    case '8':
         break;
+    // updates registers where (search criteria)
+    case '6':
+        if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+        {
+            input = fopen(input1, "rb+");
 
+            if (input)
+            {
+                status0(input);
+                update_data_where(input, numInput);
+
+                status1(input);
+                fclose(input);
+                input = NULL;
+
+                binary_on_screen(input1);
+            }
+        }
+        break;
     default:
+        printf("Invalid option! The cases go from 1 to 6.\n");
         break;
     }
 
