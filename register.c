@@ -5,7 +5,7 @@
 #include "register.h"
 
 // Helper functions are all static since they aren't used outside of this file
-//Only the helper functions are commented because they are not declared in the .h file
+// Only the helper functions are commented because they are not declared in the .h file
 
 // Parsing, writing and reading
 
@@ -153,10 +153,16 @@ Register *read_register(FILE *binFile)
 
     // these two freads are separate because the -Og flag in gcc affects the order
     if (fread(&tmpRegister->removed, sizeof(char), 1, binFile) != 1)
+    {
+        free(tmpRegister);
         return NULL;
+    }
 
     if (fread(&tmpRegister->next, sizeof(int), 1, binFile) != 1)
+    {
+        free(tmpRegister);
         return NULL;
+    }
 
     // read fixed-size integers
     if (fread(&tmpRegister->stationCode, sizeof(int), 1, binFile) != 1 ||
@@ -177,7 +183,7 @@ Register *read_register(FILE *binFile)
     {
         tmpRegister->stationName = malloc(sizeof(char) * (tmpRegister->sizeStationName + 1));
 
-        if (tmpRegister->stationName == NULL ||(fread(tmpRegister->stationName, tmpRegister->sizeStationName, 1, binFile) != 1))
+        if (tmpRegister->stationName == NULL || (fread(tmpRegister->stationName, tmpRegister->sizeStationName, 1, binFile) != 1))
         {
             printf("Unable to read station name.\n");
             free(tmpRegister->stationName);
@@ -305,20 +311,19 @@ static int check_match(Register *data, SearchField field)
     else if (strcmp(field.name, "codEstIntegra") == 0)
         return data->codeIntegStation == atoi(field.value);
     else if (strcmp(field.name, "nomeEstacao") == 0)
-        return (data->stationName != NULL) && (strcmp(field.value, data->stationName) == 0);
+        return data->stationName && strcmp(field.value, data->stationName) == 0;
     else if (strcmp(field.name, "nomeLinha") == 0)
-        return (data->lineName != NULL) && (strcmp(field.value, data->lineName) == 0);
+        return data->lineName && strcmp(field.value, data->lineName) == 0;
 
     return 0;
 }
 
-
 /**
  * @brief remakes a string of more than one word that was parsed by strtok
- * 
+ *
  * @param str initial string token
  * @param buff already allocated array of char used to controy the string
- * 
+ *
  * @return char* Pointer to the reconstructed string or the original string pointer
  */
 static char *check_quotes(char *str, char *buf)
@@ -396,7 +401,8 @@ SearchField *get_all_search_fields(int *pairIterations)
 
     *pairIterations = atoi(token);
 
-    SearchField *filters = malloc(sizeof(SearchField) * *pairIterations);
+    // need to use calloc so it doesn't have trash in it.
+    SearchField *filters = calloc(*pairIterations, sizeof(SearchField));
     for (int j = 0; j < *pairIterations; j++)
     {
         token = strtok(NULL, " \n\r");
@@ -620,10 +626,10 @@ DataStatus insert_register(FILE *binFile, Register *data, Header *header)
 
 // essentially the same as check_match, but applies the field instead
 /**
- * @brief Updates a field of a Register 
- * 
+ * @brief Updates a field of a Register
+ *
  * @param data Pointer to the register to be updated
- * @param field populated SearchField struct with the field`s name and the new value to be assigned 
+ * @param field populated SearchField struct with the field`s name and the new value to be assigned
  */
 static DataStatus update_match(Register *data, SearchField field)
 {
@@ -685,17 +691,13 @@ static DataStatus update_match(Register *data, SearchField field)
     return DATA_FAILURE;
 }
 
-DataStatus update_register(FILE *binFile, Register *data)
+DataStatus update_register(FILE *binFile, Register *data, SearchField *filters, int iterations)
 {
     if (!data)
         return DATA_FAILURE;
 
-    int pairIterations = 0;
-    // not really a search field in this case, but can be repurposed.
-    SearchField *filters = get_all_search_fields(&pairIterations);
-
     int swapWorked = 1;
-    for (int i = 0; i < pairIterations; i++)
+    for (int i = 0; i < iterations; i++)
     {
         if (update_match(data, filters[i]) == DATA_FAILURE)
         {
@@ -709,8 +711,6 @@ DataStatus update_register(FILE *binFile, Register *data)
         fseek(binFile, -REGISTER_SIZE, SEEK_CUR);
         write_register(binFile, data);
     }
-
-    free(filters);
 
     return DATA_SUCCESS;
 }

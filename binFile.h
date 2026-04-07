@@ -8,7 +8,7 @@
 // Header
 
 /**
- * @brief Creates a hearder struct and sets it with default values
+ * @brief Creates a header struct and sets it with default values
  *
  * @return Header* pointer to the dinamically alocated Header
  */

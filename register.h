@@ -107,7 +107,7 @@ DataStatus insert_register(FILE *binFile, Register *data, Header *header);
  * 
  * @return DATA_SUCESS or DATA_FAILURE
  */
-DataStatus update_register(FILE *binFile, Register *data);
+DataStatus update_register(FILE *binFile, Register *data, SearchField *filters, int iterations);
 
 /**
  * @brief free the memory of a register

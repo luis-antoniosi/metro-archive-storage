@@ -202,7 +202,7 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
     return DATA_SUCCESS;
 }
 
-//delete
+// delete
 DataStatus delete_all_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -275,15 +275,20 @@ DataStatus update_data_where(FILE *binFile, int iterations)
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
+        // not really a search field in this case, but can be repurposed.
+        int updatePairIterations = 0;
+        SearchField *updateFilters = get_all_search_fields(&updatePairIterations);
+
         Register *tmpRegister = NULL;
         while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
         {
-            update_register(binFile, tmpRegister);
+            update_register(binFile, tmpRegister, updateFilters, updatePairIterations);
 
             destroy_register(&tmpRegister);
         }
 
         free(filters);
+        free(updateFilters);
     }
 
     return DATA_SUCCESS;

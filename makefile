@@ -1,5 +1,5 @@
 CC	:=	gcc
-CFLAGS	:=	-Wall -Wextra -Og -march=native -MMD -g
+CFLAGS	:=	-Wall -Wextra -Werror -Wpedantic -O3 -march=native -MMD
 TARGET	:=	main
 SRCS	:=	$(wildcard *.c)
 HDRS	:=	$(wildcard *.h)
@@ -26,6 +26,6 @@ run: $(TARGET)
 
 clean:
 	rm -f $(OBJS) $(TARGET) $(ZIPFILE) $(DEPS)
-
+	
 zip: 
 	zip $(ZIPFILE) $(SRCS) $(HDRS) makefile
