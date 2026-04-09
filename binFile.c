@@ -23,38 +23,38 @@ Header *create_header()
     return header;
 }
 
-HeaderStatus write_header(FILE *file, Header *header)
+HeaderStatus write_header(FILE *binFile, Header *header)
 {
-    if (!file || !header)
+    if (!binFile || !header)
         return HEADER_FAILURE;
 
-    if (fseek(file, 0, SEEK_SET))
+    if (fseek(binFile, 0, SEEK_SET))
         return HEADER_FAILURE;
 
-    fwrite(&header->status, sizeof(char), 1, file);
-    fwrite(&header->top, sizeof(int), 1, file);
-    fwrite(&header->nextRRN, sizeof(int), 1, file);
-    fwrite(&header->numStations, sizeof(int), 1, file);
-    fwrite(&header->numPairStations, sizeof(int), 1, file);
+    fwrite(&header->status, sizeof(char), 1, binFile);
+    fwrite(&header->top, sizeof(int), 1, binFile);
+    fwrite(&header->nextRRN, sizeof(int), 1, binFile);
+    fwrite(&header->numStations, sizeof(int), 1, binFile);
+    fwrite(&header->numPairStations, sizeof(int), 1, binFile);
 
     return HEADER_SUCCESS;
 }
 
-Header *read_header(FILE *file)
+Header *read_header(FILE *binFile)
 {
-    if (!file)
+    if (!binFile)
         return NULL;
 
-    if (fseek(file, 0, SEEK_SET))
+    if (fseek(binFile, 0, SEEK_SET))
         return NULL;
 
     Header *header = create_header();
 
-    if (fread(&header->status, sizeof(char), 1, file) != 1 ||
-        fread(&header->top, sizeof(int), 1, file) != 1 ||
-        fread(&header->nextRRN, sizeof(int), 1, file) != 1 ||
-        fread(&header->numStations, sizeof(int), 1, file) != 1 ||
-        fread(&header->numPairStations, sizeof(int), 1, file) != 1)
+    if (fread(&header->status, sizeof(char), 1, binFile) != 1 ||
+        fread(&header->top, sizeof(int), 1, binFile) != 1 ||
+        fread(&header->nextRRN, sizeof(int), 1, binFile) != 1 ||
+        fread(&header->numStations, sizeof(int), 1, binFile) != 1 ||
+        fread(&header->numPairStations, sizeof(int), 1, binFile) != 1)
     {
         printf("Unable to read header.\n");
         free(header);
@@ -64,46 +64,37 @@ Header *read_header(FILE *file)
     return header;
 }
 
-HeaderStatus update_header_count(FILE *file)
+HeaderStatus update_header_count(FILE *binFile)
 {
-    Header *tmpHeader = read_header(file);
+    Header *tmpHeader = read_header(binFile);
     if (!tmpHeader)
         return HEADER_FAILURE;
 
-    if (update_station_counts(file, tmpHeader) == DATA_FAILURE)
+    if (update_station_counts(binFile, tmpHeader) == DATA_FAILURE)
     {
         free(tmpHeader);
         return HEADER_FAILURE;
     }
 
-    write_header(file, tmpHeader);
+    write_header(binFile, tmpHeader);
     free(tmpHeader);
 
     return HEADER_SUCCESS;
 }
 
-void status0(FILE *file)
+void change_status(FILE *binFile, char status)
 {
-    unsigned char status = '0';
-    fseek(file, 0, SEEK_SET);
-    fwrite(&status, sizeof(unsigned char), 1, file);
-
-    fflush(file);
-}
-
-void status1(FILE *file)
-{
-    unsigned char status = '1';
-    fseek(file, 0, SEEK_SET);
-    fwrite(&status, sizeof(unsigned char), 1, file);
-
-    fflush(file);
+    fseek(binFile, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, binFile);
+    fflush(binFile);
 }
 
 DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 {
     if (!inputFile || !outputFile)
         return DATA_FAILURE;
+
+    change_status(outputFile, STATUS_INCONSISTENT);
 
     Header *tempHeader = create_header();
 
@@ -141,6 +132,8 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 
     free(tempHeader);
 
+    change_status(outputFile, STATUS_CONSISTENT);
+
     return DATA_SUCCESS;
 }
 
@@ -155,13 +148,20 @@ DataStatus print_all_data(FILE *binFile)
         return DATA_FAILURE;
 
     Register *tmpRegister;
+    int anyRegisters = 0;
     while ((tmpRegister = read_register(binFile)))
     {
-        if (tmpRegister->removed != '1')
+        if (tmpRegister->removed != '1') {
             print_register(tmpRegister);
+            anyRegisters = 1;
+        }
+            
 
         destroy_register(&tmpRegister);
     }
+
+    if (!anyRegisters)
+        printf("Registro inexistente.");
 
     return DATA_SUCCESS;
 }
@@ -208,6 +208,8 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
     if (!binFile)
         return DATA_FAILURE;
 
+    change_status(binFile, STATUS_INCONSISTENT);
+
     for (int i = 0; i < iterations; i++)
     {
         if (fseek(binFile, HEADER_SIZE, SEEK_SET))
@@ -231,6 +233,8 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
     if (update_header_count(binFile) == HEADER_FAILURE)
         return DATA_FAILURE;
 
+    change_status(binFile, STATUS_CONSISTENT);
+
     return DATA_SUCCESS;
 }
 
@@ -238,6 +242,8 @@ DataStatus insert_data(FILE *binFile, int iterations)
 {
     if (!binFile)
         return DATA_FAILURE;
+
+    status(binFile, STATUS_INCONSISTENT);
 
     for (int i = 0; i < iterations; i++)
     {
@@ -259,6 +265,8 @@ DataStatus insert_data(FILE *binFile, int iterations)
     if (update_header_count(binFile) == HEADER_FAILURE)
         return DATA_FAILURE;
 
+    change_status(binFile, STATUS_CONSISTENT);
+
     return DATA_SUCCESS;
 }
 
@@ -266,6 +274,8 @@ DataStatus update_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
         return DATA_FAILURE;
+
+    status(binFile, STATUS_INCONSISTENT);
 
     for (int i = 0; i < iterations; i++)
     {
@@ -291,22 +301,24 @@ DataStatus update_data_where(FILE *binFile, int iterations)
         free(updateFilters);
     }
 
+    change_status(binFile, STATUS_CONSISTENT);
+
     return DATA_SUCCESS;
 }
 
 void binary_on_screen(char *fileName)
 {
-    FILE *file = NULL;
+    FILE *binFile = NULL;
 
-    if (!fileName || !(file = fopen(fileName, "rb")))
+    if (!fileName || !(binFile = fopen(fileName, "rb")))
         return;
 
-    fseek(file, 0, SEEK_END);
-    long totalBytes = ftell(file);
+    fseek(binFile, 0, SEEK_END);
+    long totalBytes = ftell(binFile);
 
-    fseek(file, 0, SEEK_SET);
+    fseek(binFile, 0, SEEK_SET);
     unsigned char *bytesStr = malloc(sizeof(unsigned char) * totalBytes);
-    if (fread(bytesStr, 1, totalBytes, file) != (long unsigned int)totalBytes)
+    if (fread(bytesStr, 1, totalBytes, binFile) != (long unsigned int)totalBytes)
     {
         printf("Unable to read file\n");
         free(bytesStr);
@@ -320,5 +332,5 @@ void binary_on_screen(char *fileName)
     printf("%lf\n", (byteSum / 100.0));
 
     free(bytesStr);
-    fclose(file);
+    fclose(binFile);
 }

@@ -38,7 +38,7 @@ Register *read_register(FILE *binFile);
  *
  * @param data Pointer to the register
  */
-void print_register(Register *Register);
+void print_register(Register *data);
 
 /**
  * @brief reads a Register from a file and evaluates if it meets all the serch filters

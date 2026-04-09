@@ -8,6 +8,8 @@
 #define HEADER_SIZE 17
 #define REGISTER_SIZE 80
 
+#define STATUS_INCONSISTENT '0'
+#define STATUS_CONSISTENT '1'
 #define TRASH '$'
 
 typedef enum HeaderStatus

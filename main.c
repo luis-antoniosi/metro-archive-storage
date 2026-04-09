@@ -5,12 +5,21 @@
 
 #define INPUT_SIZE 64
 
+/*
+Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476   
+Aluno:  Luiz Filipe Sá Vioto            | NºUSP: 16886252
+*/
+
+static void print_file_failure()
+{
+    printf("Falha no processamento do arquivo.\n");
+}
+
 int main()
 {
-    setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console
+    setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console (not really needed after they fixed the test cases but nice to have)
 
-    FILE *input = NULL;
-    FILE *output = NULL;
+    FILE *bin = NULL;
 
     char buffer[BUF_SIZE];
     char input1[INPUT_SIZE], input2[INPUT_SIZE];
@@ -30,30 +39,32 @@ int main()
     {
     // turning .csv into .bin, prints checksum
     case '1':
-        if (sscanf(buffer, "%*c %s %s", input1, input2) == 2) // %*c -> the * ignores it
+        if (sscanf(buffer, "%*c %s %s", input1, input2) == 2) // %*c -> the * ignores the char
         {
-            input = fopen(input1, "r");
-            output = fopen(input2, "wb+");
+            FILE *csv = fopen(input1, "r");
+            bin = fopen(input2, "wb+");
 
-            if (write_bin_file(input, output) == DATA_SUCCESS)
+            if (csv && bin && write_bin_file(csv, bin) == DATA_SUCCESS) // need to check for bin in every case so it can be safely closed
             {
-                status0(output);                
-                fclose(input);
-
-                status1(output);
-                fclose(output);
-
-                input = NULL;
-                output = NULL;
+                fclose(bin);
 
                 binary_on_screen(input2);
             }
             else
-                printf("Falha no processamento do arquivo.\n");
+            {
+                print_file_failure();
+            }
+
+            if (csv)
+                fclose(csv);
+            if (bin)
+                fclose(bin);
+
+            bin = NULL;
         }
         else
         {
-            printf("Falha no processamento do arquivo.\n");
+            print_file_failure();
         }
 
         break;
@@ -61,24 +72,23 @@ int main()
     case '2':
         if (sscanf(buffer, "%*c %s", input1) == 1)
         {
-            input = fopen(input1, "rb");
+            bin = fopen(input1, "rb");
 
-            if (input)
+            if (bin)
             {
-                if (print_all_data(input) == DATA_FAILURE)
-                    printf("Registro inexistente.");
+                print_all_data(bin);
 
-                fclose(input);
-                input = NULL;
+                fclose(bin);
+                bin = NULL;
             }
             else
             {
-                printf("Falha no processamento do arquivo.\n");
+                print_file_failure();
             }
         }
         else
         {
-            printf("Falha no processamento do arquivo.\n");
+            print_file_failure();
         }
 
         break;
@@ -86,88 +96,98 @@ int main()
     case '3':
         if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
         {
-            input = fopen(input1, "rb");
+            bin = fopen(input1, "rb");
 
-            if (input)
+            if (bin)
             {
-                print_all_data_where(input, numInput);
+                print_all_data_where(bin, numInput);
 
-                fclose(input);
-                input = NULL;
+                fclose(bin);
+                bin = NULL;
             }
             else
             {
-                printf("Falha no processamento do arquivo.\n");
+                print_file_failure();
             }
         }
         else
         {
-            printf("Falha no processamento do arquivo.\n");
+            print_file_failure();
         }
         break;
     // deletes registers where (search criteria)
     case '4':
         if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
         {
-            input = fopen(input1, "rb+");
+            bin = fopen(input1, "rb+");
 
-            if (input)
+            if (bin)
             {
-                status0(input);
-                delete_all_data_where(input, numInput);
+                delete_all_data_where(bin, numInput);
 
-                status1(input);
-                fclose(input);
-                input = NULL;
+                fclose(bin);
+                bin = NULL;
 
                 binary_on_screen(input1);
             }
             else
             {
-                printf("Falha no processamento do arquivo.\n");
+                print_file_failure();
             }
+        }
+        else
+        {
+            print_file_failure();
         }
         break;
     // inserts a register
     case '5':
         if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
         {
-            input = fopen(input1, "rb+");
+            bin = fopen(input1, "rb+");
 
-            if (input)
+            if (bin)
             {
-                status0(input);
-                insert_data(input, numInput);
+                insert_data(bin, numInput);
 
-                status1(input);
-                fclose(input);
-                input = NULL;
+                fclose(bin);
+                bin = NULL;
 
                 binary_on_screen(input1);
             }
             else
             {
-                printf("Falha no processamento do arquivo.\n");
+                print_file_failure();
             }
+        }
+        else
+        {
+            print_file_failure();
         }
         break;
     // updates registers where (search criteria)
     case '6':
         if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
         {
-            input = fopen(input1, "rb+");
+            bin = fopen(input1, "rb+");
 
-            if (input)
+            if (bin)
             {
-                status0(input);
-                update_data_where(input, numInput);
+                update_data_where(bin, numInput);
 
-                status1(input);
-                fclose(input);
-                input = NULL;
+                fclose(bin);
+                bin = NULL;
 
                 binary_on_screen(input1);
             }
+            else
+            {
+                print_file_failure();
+            }
+        }
+        else
+        {
+            print_file_failure();
         }
         break;
     default:
@@ -175,10 +195,8 @@ int main()
         break;
     }
 
-    if (input) // the attribuitions to NULL after closing are so this doesnt close smth else
-        fclose(input);
-    if (output)
-        fclose(output);
+    if (bin) // the attribuitions of bin to NULL after closing are so this doesnt close an already closed address
+        fclose(bin);
 
     return 0;
 }
