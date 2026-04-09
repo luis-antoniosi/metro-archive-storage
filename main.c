@@ -47,6 +47,7 @@ int main()
             if (csv && bin && write_bin_file(csv, bin) == DATA_SUCCESS) // need to check for bin in every case so it can be safely closed
             {
                 fclose(bin);
+                bin = NULL;
 
                 binary_on_screen(input2);
             }

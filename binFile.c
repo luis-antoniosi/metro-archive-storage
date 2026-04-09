@@ -243,7 +243,7 @@ DataStatus insert_data(FILE *binFile, int iterations)
     if (!binFile)
         return DATA_FAILURE;
 
-    status(binFile, STATUS_INCONSISTENT);
+    change_status(binFile, STATUS_INCONSISTENT);
 
     for (int i = 0; i < iterations; i++)
     {
@@ -275,7 +275,7 @@ DataStatus update_data_where(FILE *binFile, int iterations)
     if (!binFile)
         return DATA_FAILURE;
 
-    status(binFile, STATUS_INCONSISTENT);
+    change_status(binFile, STATUS_INCONSISTENT);
 
     for (int i = 0; i < iterations; i++)
     {
