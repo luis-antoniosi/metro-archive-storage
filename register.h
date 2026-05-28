@@ -72,16 +72,6 @@ SearchField *get_all_search_fields(int *pairIterations);
 void remove_register(FILE *binFile);
 
 /**
- * @brief Recalculates the numStations and numPairStations count
- * 
- * @param binFile Pointer to the open binary file
- * @param header Pointer to the Header struct that will be updated
- * 
- * @return DATA_SUCESS or DATA_FAILURE
- */
-DataStatus update_station_counts(FILE *binFile, Header *header);
-
-/**
  * @brief reads a line from stdin and parses it into a register
  * 
  * @return Register* Pointer to the populated register or NULL if fail

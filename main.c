@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
-#include "binFile.h"
+#include <string.h>
+#include "types.h"
+#include "headerUtils.h"
+#include "register.h"
+#include "binFile.h"    
+#include "binarioNaTela.h"
 
 #define INPUT_SIZE 64
 
 /*
-Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476   
+Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
 Aluno:  Luiz Filipe Sá Vioto            | NºUSP: 16886252
 */
 
@@ -49,7 +54,7 @@ int main()
                 fclose(bin);
                 bin = NULL;
 
-                binary_on_screen(input2);
+                BinarioNaTela(input2);
             }
             else
             {
@@ -129,7 +134,7 @@ int main()
                 fclose(bin);
                 bin = NULL;
 
-                binary_on_screen(input1);
+                BinarioNaTela(input1);
             }
             else
             {

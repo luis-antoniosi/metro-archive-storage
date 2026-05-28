@@ -4,90 +4,7 @@
 #include "register.h"
 #include "types.h"
 #include "binFile.h"
-
-// Header functions
-
-Header *create_header()
-{
-    Header *header = malloc(sizeof(Header));
-
-    if (!header)
-        return NULL;
-
-    header->status = '0';
-    header->top = -1;
-    header->nextRRN = 0;
-    header->numStations = 0;
-    header->numPairStations = 0;
-
-    return header;
-}
-
-HeaderStatus write_header(FILE *binFile, Header *header)
-{
-    if (!binFile || !header)
-        return HEADER_FAILURE;
-
-    if (fseek(binFile, 0, SEEK_SET))
-        return HEADER_FAILURE;
-
-    fwrite(&header->status, sizeof(char), 1, binFile);
-    fwrite(&header->top, sizeof(int), 1, binFile);
-    fwrite(&header->nextRRN, sizeof(int), 1, binFile);
-    fwrite(&header->numStations, sizeof(int), 1, binFile);
-    fwrite(&header->numPairStations, sizeof(int), 1, binFile);
-
-    return HEADER_SUCCESS;
-}
-
-Header *read_header(FILE *binFile)
-{
-    if (!binFile)
-        return NULL;
-
-    if (fseek(binFile, 0, SEEK_SET))
-        return NULL;
-
-    Header *header = create_header();
-
-    if (fread(&header->status, sizeof(char), 1, binFile) != 1 ||
-        fread(&header->top, sizeof(int), 1, binFile) != 1 ||
-        fread(&header->nextRRN, sizeof(int), 1, binFile) != 1 ||
-        fread(&header->numStations, sizeof(int), 1, binFile) != 1 ||
-        fread(&header->numPairStations, sizeof(int), 1, binFile) != 1)
-    {
-        printf("Unable to read header.\n");
-        free(header);
-        return NULL;
-    }
-
-    return header;
-}
-
-HeaderStatus update_header_count(FILE *binFile)
-{
-    Header *tmpHeader = read_header(binFile);
-    if (!tmpHeader)
-        return HEADER_FAILURE;
-
-    if (update_station_counts(binFile, tmpHeader) == DATA_FAILURE)
-    {
-        free(tmpHeader);
-        return HEADER_FAILURE;
-    }
-
-    write_header(binFile, tmpHeader);
-    free(tmpHeader);
-
-    return HEADER_SUCCESS;
-}
-
-void change_status(FILE *binFile, char status)
-{
-    fseek(binFile, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, binFile);
-    fflush(binFile);
-}
+#include "headerUtils.h"
 
 DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 {
@@ -96,17 +13,17 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
 
     change_status(outputFile, STATUS_INCONSISTENT);
 
-    Header *tempHeader = create_header();
-
+    Header *fileHeader = create_header();
     char buffer[BUF_SIZE];
-
     int numData = 0;
 
-    if (!tempHeader || write_header(outputFile, tempHeader) == HEADER_FAILURE || !fgets(buffer, BUF_SIZE, inputFile))
+    if (!fgets(buffer, BUF_SIZE, inputFile))
     {
-        free(tempHeader);
+        free(fileHeader);
         return DATA_FAILURE;
     }
+
+    write_header(outputFile, fileHeader);
 
     while (fgets(buffer, sizeof(buffer), inputFile))
     {
@@ -115,7 +32,7 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
             continue;
 
         newRegister->removed = '0';
-        newRegister->next = tempHeader->top;
+        newRegister->next = -1;
 
         write_register(outputFile, newRegister);
         numData++;
@@ -123,14 +40,19 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
         destroy_register(&newRegister);
     }
 
-    tempHeader->nextRRN = numData;
+    fileHeader->nextRRN = numData;
+    
 
-    if (update_station_counts(outputFile, tempHeader) == DATA_FAILURE)
+    write_header(outputFile, fileHeader);
+    
+
+    if (update_station_counts(outputFile, fileHeader) == DATA_FAILURE)
+    {
+        free(fileHeader);
         return DATA_FAILURE;
+    }
 
-    write_header(outputFile, tempHeader);
-
-    free(tempHeader);
+    free(fileHeader);
 
     change_status(outputFile, STATUS_CONSISTENT);
 
@@ -151,11 +73,11 @@ DataStatus print_all_data(FILE *binFile)
     int anyRegisters = 0;
     while ((tmpRegister = read_register(binFile)))
     {
-        if (tmpRegister->removed != '1') {
+        if (tmpRegister->removed != '1')
+        {
             print_register(tmpRegister);
             anyRegisters = 1;
         }
-            
 
         destroy_register(&tmpRegister);
     }
@@ -179,6 +101,17 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
+        // verifies if the search uses primary key
+        int searchByPrimaryKey = 0;
+        for (int j = 0; j < pairIterations; j++)
+        {
+            if (strcmp(filters[j].name, "codEstacao") == 0)
+            {
+                searchByPrimaryKey = 1;
+                break;
+            }
+        }
+
         Register *tmpRegister = NULL;
         int anyMatches = 0;
 
@@ -189,6 +122,12 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
             anyMatches = 1;
 
             destroy_register(&tmpRegister);
+
+            // if primary key is used, break
+            if (searchByPrimaryKey)
+            {
+                break;
+            }
         }
 
         if (!anyMatches)
@@ -218,6 +157,17 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
+        // verifies if the search uses primary key
+        int searchByPrimaryKey = 0;
+        for (int j = 0; j < pairIterations; j++)
+        {
+            if (strcmp(filters[j].name, "codEstacao") == 0)
+            {
+                searchByPrimaryKey = 1;
+                break;
+            }
+        }
+
         Register *tmpRegister = NULL;
         while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
         {
@@ -225,6 +175,12 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
             fseek(binFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
 
             destroy_register(&tmpRegister);
+
+            // if primary key is used, break
+            if (searchByPrimaryKey)
+            {
+                break;
+            }
         }
 
         free(filters);
@@ -285,6 +241,17 @@ DataStatus update_data_where(FILE *binFile, int iterations)
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
 
+        // verifies if the search uses primary key
+        int searchByPrimaryKey = 0;
+        for (int j = 0; j < pairIterations; j++)
+        {
+            if (strcmp(filters[j].name, "codEstacao") == 0)
+            {
+                searchByPrimaryKey = 1;
+                break;
+            }
+        }
+
         // not really a search field in this case, but can be repurposed.
         int updatePairIterations = 0;
         SearchField *updateFilters = get_all_search_fields(&updatePairIterations);
@@ -295,6 +262,12 @@ DataStatus update_data_where(FILE *binFile, int iterations)
             update_register(binFile, tmpRegister, updateFilters, updatePairIterations);
 
             destroy_register(&tmpRegister);
+
+            // if primary key is used, break
+            if (searchByPrimaryKey)
+            {
+                break;
+            }
         }
 
         free(filters);
