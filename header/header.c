@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "headerUtils.h"
-#include "register.h"
+#include "header.h"
+#include "../register/register.h"
 
 Header *create_header()
 {
@@ -21,13 +20,13 @@ Header *create_header()
     return header;
 }
 
-HeaderStatus write_header(FILE *binFile, Header *header)
+Status write_header(FILE *binFile, Header *header)
 {
     if (!binFile || !header)
-        return HEADER_FAILURE;
+        return FAILURE;
 
     if (fseek(binFile, 0, SEEK_SET))
-        return HEADER_FAILURE;
+        return FAILURE;
 
     fwrite(&header->status, sizeof(char), 1, binFile);
     fwrite(&header->top, sizeof(int), 1, binFile);
@@ -35,7 +34,7 @@ HeaderStatus write_header(FILE *binFile, Header *header)
     fwrite(&header->numStations, sizeof(int), 1, binFile);
     fwrite(&header->numPairStations, sizeof(int), 1, binFile);
 
-    return HEADER_SUCCESS;
+    return SUCCESS;
 }
 
 Header *read_header(FILE *binFile)
@@ -62,22 +61,22 @@ Header *read_header(FILE *binFile)
     return header;
 }
 
-HeaderStatus update_header_count(FILE *binFile)
+Status update_header_count(FILE *binFile)
 {
     Header *fileHeader = read_header(binFile);
     if (!fileHeader)
-        return HEADER_FAILURE;
+        return FAILURE;
 
-    if (update_station_counts(binFile, fileHeader) == DATA_FAILURE)
+    if (update_station_counts(binFile, fileHeader) == FAILURE)
     {
         free(fileHeader);
-        return HEADER_FAILURE;
+        return FAILURE;
     }
 
     write_header(binFile, fileHeader);
     free(fileHeader);
 
-    return HEADER_SUCCESS;
+    return SUCCESS;
 }
 
 void change_status(FILE *binFile, char status)
@@ -87,7 +86,7 @@ void change_status(FILE *binFile, char status)
     fflush(binFile);
 }
 
-DataStatus update_station_counts(FILE *binFile, Header *header)
+Status update_station_counts(FILE *binFile, Header *header)
 {
     fseek(binFile, HEADER_SIZE, SEEK_SET);
 
@@ -98,11 +97,12 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
     {
         free(seenStations);
         free(seenPairs);
-        return DATA_FAILURE;
+        return FAILURE;
     }
 
     int numStations = 0, numPairStations = 0;
     Register *currentRegister = NULL;
+
     while ((currentRegister = read_register(binFile)))
     {
         if (currentRegister->removed == '1')
@@ -124,9 +124,12 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
             }
 
             if (!isDuplicate)
+            {
                 seenStations[numStations++] = strdup(currentRegister->stationName);
+            }
         }
 
+        // processing unique pairs
         if (currentRegister->nextStationCode != -1)
         {
             int isDuplicatePair = 0;
@@ -161,11 +164,10 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
     free(seenStations);
     free(seenPairs);
 
-
-    if (write_header(binFile, header) == HEADER_FAILURE)
+    if (write_header(binFile, header) == FAILURE)
     {
-        return DATA_FAILURE;
+        return FAILURE;
     }
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }

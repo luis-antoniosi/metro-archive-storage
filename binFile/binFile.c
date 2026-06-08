@@ -1,15 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "register.h"
-#include "types.h"
 #include "binFile.h"
-#include "headerUtils.h"
+#include "../header/header.h"
+#include "../register/register.h"
+#include "../register/search.h"
+#include "../register/modify.h"
 
-DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
+Status write_bin_file(FILE *inputFile, FILE *outputFile)
 {
     if (!inputFile || !outputFile)
-        return DATA_FAILURE;
+        return FAILURE;
 
     change_status(outputFile, STATUS_INCONSISTENT);
 
@@ -17,13 +18,13 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
     char buffer[BUF_SIZE];
     int numData = 0;
 
-    if (!fgets(buffer, BUF_SIZE, inputFile))
+    // checks if header is not null, if it's not, write it to the bin file, and if that works, get the path of the .csv
+    // if any of those fail, it frees the header and returns.
+    if (!fileHeader || write_header(outputFile, fileHeader) || !fgets(buffer, BUF_SIZE, inputFile))
     {
         free(fileHeader);
-        return DATA_FAILURE;
+        return FAILURE;
     }
-
-    write_header(outputFile, fileHeader);
 
     while (fgets(buffer, sizeof(buffer), inputFile))
     {
@@ -41,33 +42,30 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile)
     }
 
     fileHeader->nextRRN = numData;
-    
 
-    write_header(outputFile, fileHeader);
-    
-
-    if (update_station_counts(outputFile, fileHeader) == DATA_FAILURE)
+    // this function writes the header after getting the station count
+    if (update_station_counts(outputFile, fileHeader) == FAILURE)
     {
         free(fileHeader);
-        return DATA_FAILURE;
+        return FAILURE;
     }
 
     free(fileHeader);
 
     change_status(outputFile, STATUS_CONSISTENT);
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }
 
 // printing related
 
-DataStatus print_all_data(FILE *binFile)
+Status print_all_data(FILE *binFile)
 {
     if (!binFile)
-        return DATA_FAILURE;
+        return FAILURE;
 
     if (fseek(binFile, HEADER_SIZE, SEEK_SET))
-        return DATA_FAILURE;
+        return FAILURE;
 
     Register *currentReg;
     int foundRegister = 0;
@@ -85,18 +83,18 @@ DataStatus print_all_data(FILE *binFile)
     if (!foundRegister)
         printf("Registro inexistente.");
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }
 
-DataStatus print_all_data_where(FILE *binFile, int iterations)
+Status print_all_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
-        return DATA_FAILURE;
+        return FAILURE;
 
     for (int i = 0; i < iterations; i++)
     {
         if (fseek(binFile, HEADER_SIZE, SEEK_SET))
-            return DATA_FAILURE;
+            return FAILURE;
 
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
@@ -138,21 +136,21 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         free(filters);
     }
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }
 
 // delete
-DataStatus delete_all_data_where(FILE *binFile, int iterations)
+Status delete_all_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
-        return DATA_FAILURE;
+        return FAILURE;
 
     change_status(binFile, STATUS_INCONSISTENT);
 
     for (int i = 0; i < iterations; i++)
     {
         if (fseek(binFile, HEADER_SIZE, SEEK_SET))
-            return DATA_FAILURE;
+            return FAILURE;
 
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
@@ -186,18 +184,18 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
         free(filters);
     }
 
-    if (update_header_count(binFile) == HEADER_FAILURE)
-        return DATA_FAILURE;
+    if (update_header_count(binFile) == FAILURE)
+        return FAILURE;
 
     change_status(binFile, STATUS_CONSISTENT);
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }
 
-DataStatus insert_data(FILE *binFile, int iterations)
+Status insert_data(FILE *binFile, int iterations)
 {
     if (!binFile)
-        return DATA_FAILURE;
+        return FAILURE;
 
     change_status(binFile, STATUS_INCONSISTENT);
 
@@ -218,25 +216,25 @@ DataStatus insert_data(FILE *binFile, int iterations)
         }
     }
 
-    if (update_header_count(binFile) == HEADER_FAILURE)
-        return DATA_FAILURE;
+    if (update_header_count(binFile) == FAILURE)
+        return FAILURE;
 
     change_status(binFile, STATUS_CONSISTENT);
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }
 
-DataStatus update_data_where(FILE *binFile, int iterations)
+Status update_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
-        return DATA_FAILURE;
+        return FAILURE;
 
     change_status(binFile, STATUS_INCONSISTENT);
 
     for (int i = 0; i < iterations; i++)
     {
         if (fseek(binFile, HEADER_SIZE, SEEK_SET))
-            return DATA_FAILURE;
+            return FAILURE;
 
         int pairIterations = 0;
         SearchField *filters = get_all_search_fields(&pairIterations);
@@ -276,7 +274,7 @@ DataStatus update_data_where(FILE *binFile, int iterations)
 
     change_status(binFile, STATUS_CONSISTENT);
 
-    return DATA_SUCCESS;
+    return SUCCESS;
 }
 
 void binary_on_screen(char *fileName)

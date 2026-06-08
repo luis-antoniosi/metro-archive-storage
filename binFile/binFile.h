@@ -2,8 +2,8 @@
 #define BINFILE_H
 
 #include <stdio.h>
-#include "types.h"
-#include "register.h"
+#include "../types.h"
+#include "../register/register.h"
 
 // Write file
 /**
@@ -12,9 +12,9 @@
  * @param inputFile Open input .csv file in "r" mode
  * @param outputFile Open output binary file in "wb+" mode
  *
- * @return DATA_SUCESS if sucesseful or DATA_FAILURE if unsucesseful
+ * @return DATA_SUCCESS if sucesseful or DATA_FAILURE if unsucesseful
  */
-DataStatus write_bin_file(FILE *inputFile, FILE *outputFile);
+Status write_bin_file(FILE *inputFile, FILE *outputFile);
 
 // Print
 /**
@@ -24,7 +24,7 @@ DataStatus write_bin_file(FILE *inputFile, FILE *outputFile);
  *
  * @return DATA_SUCESS or DATA_FAILURE
  */
-DataStatus print_all_data(FILE *binFile);
+Status print_all_data(FILE *binFile);
 
 /**
  * @brief prints all registers that meets the filters requirements
@@ -34,13 +34,13 @@ DataStatus print_all_data(FILE *binFile);
  *
  * @return DATA_SUCESS or DATA_FAILURE
  */
-DataStatus print_all_data_where(FILE *binFile, int iterations);
+Status print_all_data_where(FILE *binFile, int iterations);
 
 // Delete
 /**
  * @brief deletes all registers that meets the filters requirements
  */
-DataStatus delete_all_data_where(FILE *binFile, int iterations);
+Status delete_all_data_where(FILE *binFile, int iterations);
 
 /**
  * @brief Inserts multiple registers in a binary file
@@ -50,7 +50,7 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations);
  * 
  * @return DATA_SUCESS or DATA_FAILURE
  */
-DataStatus insert_data(FILE *binFile, int iterations);
+Status insert_data(FILE *binFile, int iterations);
 
 /**
  * @brief Searchs for records that matches a criteria and updates them
@@ -60,7 +60,7 @@ DataStatus insert_data(FILE *binFile, int iterations);
  * 
  * @return DATA_SUCESS or DATA_FAILURE
  */
-DataStatus update_data_where(FILE *binFile, int iterations);
+Status update_data_where(FILE *binFile, int iterations);
 
 // Print binary
 /**

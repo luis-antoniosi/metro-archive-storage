@@ -3,9 +3,9 @@
 #include <locale.h>
 #include <string.h>
 #include "types.h"
-#include "headerUtils.h"
-#include "register.h"
-#include "binFile.h"    
+#include "header/header.h"
+#include "register/register.h"
+#include "binFile/binFile.h"
 #include "binarioNaTela.h"
 
 #define INPUT_SIZE 64
@@ -47,9 +47,9 @@ int main()
         if (sscanf(buffer, "%*c %s %s", filePath, outputPath) == 2) // %*c -> the * ignores the char
         {
             FILE *csv = fopen(filePath, "r");
-            bin = fopen(outputPath, "wb");
+            bin = fopen(outputPath, "wb+");
 
-            if (csv && bin && write_bin_file(csv, bin) == DATA_SUCCESS) // need to check for bin in every case so it can be safely closed
+            if (csv && bin && write_bin_file(csv, bin) == SUCCESS) // need to check for bin in every case so it can be safely closed
             {
                 fclose(bin);
                 bin = NULL;

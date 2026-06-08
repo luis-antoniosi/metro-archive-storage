@@ -1,8 +1,8 @@
-#ifndef HEADER_UTILS_H
-#define HEADER_UTILS_H
+#ifndef HEADER_H
+#define HEADER_H
 
 #include <stdio.h>
-#include "types.h"
+#include "../types.h"
 
 /**
  * @brief Creates a header struct and sets it with default values
@@ -17,9 +17,9 @@ Header *create_header();
  * @param binFile File that the header will be written to
  * @param header header to be written
  *
- * @return int returns HEADER_SUCCESS if sucesseful or HEADER_FAILURE if not sucesseful
+ * @return int returns SUCCESS if sucesseful or FAILURE if not sucesseful
  */
-HeaderStatus write_header(FILE *binFile, Header *header);
+Status write_header(FILE *binFile, Header *header);
 
 /**
  * @brief reads a Header from a file
@@ -35,9 +35,9 @@ Header *read_header(FILE *binFile);
  * 
  * @param binFile Open binary file
  * 
- * @return HEADER_SUCESS or HEADER_FAILURE
+ * @return SUCCESS or FAILURE
  */
-HeaderStatus update_header_count(FILE *binFile);
+Status update_header_count(FILE *binFile);
 
 /**
  * @brief writes a specified status to the beginning of a file
@@ -53,8 +53,8 @@ void change_status(FILE *binFile, char status);
  * @param binFile Pointer to the open binary file
  * @param header Pointer to the Header struct that will be updated
  * 
- * @return DATA_SUCESS or DATA_FAILURE
+ * @return SUCCESS or FAILURE
  */
-DataStatus update_station_counts(FILE *binFile, Header *header);
+Status update_station_counts(FILE *binFile, Header *header);
 
 #endif

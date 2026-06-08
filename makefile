@@ -1,8 +1,8 @@
 CC	:=	gcc
 CFLAGS	:=	-Wall -Wextra -Werror -Wpedantic -march=native -MMD
 TARGET	:=	main
-SRCS	:=	$(wildcard *.c)
-HDRS	:=	$(wildcard *.h)
+SRCS	:=	$(wildcard *.c) $(wildcard */*.c)
+HDRS	:=	$(wildcard *.h) $(wildcard */*.h)
 OBJS	:=	$(SRCS:.c=.o)
 DEPS	:=	$(OBJS:.o=.d)
 

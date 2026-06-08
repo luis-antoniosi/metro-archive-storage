@@ -22,24 +22,14 @@
 //---------------------------------//
 
 /**
- * @enum HeaderStatus
- * @brief Indicates success or failure in header manipulation.
+ * @enum Status
+ * @brief Indicates success or failure in functions.
  */
-typedef enum HeaderStatus
+typedef enum Status
 {
-    HEADER_SUCCESS = 0,
-    HEADER_FAILURE = 1
-} HeaderStatus;
-
-/**
- * @enum DataStatus
- * @brief Indicates success or failure in data records or index manipulation.
- */
-typedef enum DataStatus
-{
-    DATA_SUCCESS = 0,
-    DATA_FAILURE = 1
-} DataStatus;
+    SUCCESS = 0,
+    FAILURE = 1
+} Status;
 
 //-------------------------------------//
 //        DATA FILE STRUCTURES         //
