@@ -113,39 +113,39 @@ DataStatus update_station_counts(FILE *binFile, Header *header)
 
         if (currentRegister->stationName)
         {
-            int foundName = 0;
+            int isDuplicate = 0;
             for (int i = 0; i < numStations; i++)
             {
                 if (strcmp(seenStations[i], currentRegister->stationName) == 0)
                 {
-                    foundName = 1;
+                    isDuplicate = 1;
                     break;
                 }
             }
 
-            if (!foundName)
+            if (!isDuplicate)
                 seenStations[numStations++] = strdup(currentRegister->stationName);
         }
 
         if (currentRegister->nextStationCode != -1)
         {
-            int foundPair = 0;
+            int isDuplicatePair = 0;
             // impossibilitating cases like (1, 2) != (2, 1)
             int first = (currentRegister->stationCode < currentRegister->nextStationCode) ? currentRegister->stationCode : currentRegister->nextStationCode;
-            int scnd = (currentRegister->stationCode < currentRegister->nextStationCode) ? currentRegister->nextStationCode : currentRegister->stationCode;
+            int second = (currentRegister->stationCode < currentRegister->nextStationCode) ? currentRegister->nextStationCode : currentRegister->stationCode;
             for (int i = 0; i < numPairStations; i++)
             {
-                if (seenPairs[i].stationCode == first && seenPairs[i].nextStationCode == scnd)
+                if (seenPairs[i].stationCode == first && seenPairs[i].nextStationCode == second)
                 {
-                    foundPair = 1;
+                    isDuplicatePair = 1;
                     break;
                 }
             }
 
-            if (!foundPair)
+            if (!isDuplicatePair)
             {
                 seenPairs[numPairStations].stationCode = first;
-                seenPairs[numPairStations].nextStationCode = scnd;
+                seenPairs[numPairStations].nextStationCode = second;
                 numPairStations++;
             }
         }

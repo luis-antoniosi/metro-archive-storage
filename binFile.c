@@ -69,20 +69,20 @@ DataStatus print_all_data(FILE *binFile)
     if (fseek(binFile, HEADER_SIZE, SEEK_SET))
         return DATA_FAILURE;
 
-    Register *tmpRegister;
-    int anyRegisters = 0;
-    while ((tmpRegister = read_register(binFile)))
+    Register *currentReg;
+    int foundRegister = 0;
+    while ((currentReg = read_register(binFile)))
     {
-        if (tmpRegister->removed != '1')
+        if (currentReg->removed != '1')
         {
-            print_register(tmpRegister);
-            anyRegisters = 1;
+            print_register(currentReg);
+            foundRegister = 1;
         }
 
-        destroy_register(&tmpRegister);
+        destroy_register(&currentReg);
     }
 
-    if (!anyRegisters)
+    if (!foundRegister)
         printf("Registro inexistente.");
 
     return DATA_SUCCESS;
@@ -102,29 +102,29 @@ DataStatus print_all_data_where(FILE *binFile, int iterations)
         SearchField *filters = get_all_search_fields(&pairIterations);
 
         // verifies if the search uses primary key
-        int searchByPrimaryKey = 0;
+        int searchByStationCode = 0;
         for (int j = 0; j < pairIterations; j++)
         {
             if (strcmp(filters[j].name, "codEstacao") == 0)
             {
-                searchByPrimaryKey = 1;
+                searchByStationCode = 1;
                 break;
             }
         }
 
-        Register *tmpRegister = NULL;
-        int anyMatches = 0;
+        Register *currentReg = NULL;
+        int anyMatches = 0; // variable to check if a register was found based on the fields
 
-        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
+        while ((currentReg = check_register_field_search(binFile, filters, pairIterations)))
         {
-            print_register(tmpRegister);
+            print_register(currentReg);
 
             anyMatches = 1;
 
-            destroy_register(&tmpRegister);
+            destroy_register(&currentReg);
 
             // if primary key is used, break
-            if (searchByPrimaryKey)
+            if (searchByStationCode)
             {
                 break;
             }
@@ -158,26 +158,26 @@ DataStatus delete_all_data_where(FILE *binFile, int iterations)
         SearchField *filters = get_all_search_fields(&pairIterations);
 
         // verifies if the search uses primary key
-        int searchByPrimaryKey = 0;
+        int searchByStationCode = 0;
         for (int j = 0; j < pairIterations; j++)
         {
             if (strcmp(filters[j].name, "codEstacao") == 0)
             {
-                searchByPrimaryKey = 1;
+                searchByStationCode = 1;
                 break;
             }
         }
 
-        Register *tmpRegister = NULL;
-        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
+        Register *currentReg = NULL;
+        while ((currentReg = check_register_field_search(binFile, filters, pairIterations)))
         {
             remove_register(binFile);
             fseek(binFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
 
-            destroy_register(&tmpRegister);
+            destroy_register(&currentReg);
 
             // if primary key is used, break
-            if (searchByPrimaryKey)
+            if (searchByStationCode)
             {
                 break;
             }
@@ -203,17 +203,17 @@ DataStatus insert_data(FILE *binFile, int iterations)
 
     for (int i = 0; i < iterations; i++)
     {
-        Register *tmpRegister = NULL;
-        tmpRegister = input_register();
+        Register *currentReg = NULL;
+        currentReg = input_register();
 
-        if (tmpRegister)
+        if (currentReg)
         {
             Header *currHeader = read_header(binFile);
-            insert_register(binFile, tmpRegister, currHeader);
+            insert_register(binFile, currentReg, currHeader);
 
             write_header(binFile, currHeader);
 
-            destroy_register(&tmpRegister);
+            destroy_register(&currentReg);
             free(currHeader);
         }
     }
@@ -242,12 +242,12 @@ DataStatus update_data_where(FILE *binFile, int iterations)
         SearchField *filters = get_all_search_fields(&pairIterations);
 
         // verifies if the search uses primary key
-        int searchByPrimaryKey = 0;
+        int searchByStationCode = 0;
         for (int j = 0; j < pairIterations; j++)
         {
             if (strcmp(filters[j].name, "codEstacao") == 0)
             {
-                searchByPrimaryKey = 1;
+                searchByStationCode = 1;
                 break;
             }
         }
@@ -256,15 +256,15 @@ DataStatus update_data_where(FILE *binFile, int iterations)
         int updatePairIterations = 0;
         SearchField *updateFilters = get_all_search_fields(&updatePairIterations);
 
-        Register *tmpRegister = NULL;
-        while ((tmpRegister = check_register_field_search(binFile, filters, pairIterations)))
+        Register *currentReg = NULL;
+        while ((currentReg = check_register_field_search(binFile, filters, pairIterations)))
         {
-            update_register(binFile, tmpRegister, updateFilters, updatePairIterations);
+            update_register(binFile, currentReg, updateFilters, updatePairIterations);
 
-            destroy_register(&tmpRegister);
+            destroy_register(&currentReg);
 
             // if primary key is used, break
-            if (searchByPrimaryKey)
+            if (searchByStationCode)
             {
                 break;
             }

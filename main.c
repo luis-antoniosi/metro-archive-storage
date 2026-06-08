@@ -27,8 +27,8 @@ int main()
     FILE *bin = NULL;
 
     char buffer[BUF_SIZE];
-    char input1[INPUT_SIZE], input2[INPUT_SIZE];
-    int numInput = 0;
+    char filePath[INPUT_SIZE], outputPath[INPUT_SIZE];
+    int iterations = 0;
     char option = '0';
 
     if (!fgets(buffer, BUF_SIZE, stdin))
@@ -44,17 +44,17 @@ int main()
     {
     // turning .csv into .bin, prints checksum
     case '1':
-        if (sscanf(buffer, "%*c %s %s", input1, input2) == 2) // %*c -> the * ignores the char
+        if (sscanf(buffer, "%*c %s %s", filePath, outputPath) == 2) // %*c -> the * ignores the char
         {
-            FILE *csv = fopen(input1, "r");
-            bin = fopen(input2, "wb+");
+            FILE *csv = fopen(filePath, "r");
+            bin = fopen(outputPath, "wb");
 
             if (csv && bin && write_bin_file(csv, bin) == DATA_SUCCESS) // need to check for bin in every case so it can be safely closed
             {
                 fclose(bin);
                 bin = NULL;
 
-                BinarioNaTela(input2);
+                BinarioNaTela(outputPath);
             }
             else
             {
@@ -76,9 +76,9 @@ int main()
         break;
     // prints all registers
     case '2':
-        if (sscanf(buffer, "%*c %s", input1) == 1)
+        if (sscanf(buffer, "%*c %s", filePath) == 1)
         {
-            bin = fopen(input1, "rb");
+            bin = fopen(filePath, "rb");
 
             if (bin)
             {
@@ -100,13 +100,13 @@ int main()
         break;
     // prints all registers where (search criteria)
     case '3':
-        if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(input1, "rb");
+            bin = fopen(filePath, "rb");
 
             if (bin)
             {
-                print_all_data_where(bin, numInput);
+                print_all_data_where(bin, iterations);
 
                 fclose(bin);
                 bin = NULL;
@@ -123,18 +123,18 @@ int main()
         break;
     // deletes registers where (search criteria)
     case '4':
-        if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(input1, "rb+");
+            bin = fopen(filePath, "rb+");
 
             if (bin)
             {
-                delete_all_data_where(bin, numInput);
+                delete_all_data_where(bin, iterations);
 
                 fclose(bin);
                 bin = NULL;
 
-                BinarioNaTela(input1);
+                BinarioNaTela(filePath);
             }
             else
             {
@@ -148,18 +148,18 @@ int main()
         break;
     // inserts a register
     case '5':
-        if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(input1, "rb+");
+            bin = fopen(filePath, "rb+");
 
             if (bin)
             {
-                insert_data(bin, numInput);
+                insert_data(bin, iterations);
 
                 fclose(bin);
                 bin = NULL;
 
-                binary_on_screen(input1);
+                binary_on_screen(filePath);
             }
             else
             {
@@ -173,18 +173,18 @@ int main()
         break;
     // updates registers where (search criteria)
     case '6':
-        if (sscanf(buffer, "%*c %s %d", input1, &numInput) == 2)
+        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(input1, "rb+");
+            bin = fopen(filePath, "rb+");
 
             if (bin)
             {
-                update_data_where(bin, numInput);
+                update_data_where(bin, iterations);
 
                 fclose(bin);
                 bin = NULL;
 
-                binary_on_screen(input1);
+                binary_on_screen(filePath);
             }
             else
             {

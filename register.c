@@ -192,7 +192,7 @@ Register *read_register(FILE *binFile)
     }
     bytesRead += sizeof(char);
 
-    //correction: if register is flaged as removed, skip to the next register
+    //if register is flaged as removed, skip to the next register (we return it)
     if(currentRegister->removed == '1'){
         fseek(binFile, REGISTER_SIZE - bytesRead, SEEK_CUR);
         return currentRegister;
@@ -381,7 +381,7 @@ static char *check_quotes(char *str, char *buf)
     if (str[0] == '\"')
     {
         buf[0] = '\0';
-        char *insideQuotes = str + 1;
+        char *insideQuotes = str + 1; // since some field values can be inside quotes, this pointer refers to the string inside those quotes
 
         while (insideQuotes)
         {
