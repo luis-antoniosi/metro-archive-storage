@@ -5,6 +5,7 @@
 #include "types.h"
 
 #define TREE_ORDER 4
+#define HEADER_SIZE 17
 #define NODE_SIZE 53
 
 typedef struct BTHeader {
@@ -33,12 +34,18 @@ typedef struct BTPage
     int subPages[TREE_ORDER];
 } BTPage;
 
+typedef enum NodeType {
+    LEAF = -1,
+    ROOT = 0,
+    INTERMEDIARY = 1
+} NodeType;
+
 BTHeader *create_header();
 Status write_header(FILE *binFile, BTHeader *header);
 BTHeader *read_header(FILE *binFile);
 
 BTPage *create_page();
 Status write_page(FILE *binFile, BTPage *page);
-BTPage *read_page();
+BTPage *read_page(FILE *binFile, int RRN);
 
 #endif

@@ -59,17 +59,73 @@ BTHeader *read_header(FILE *binFile)
     return header;
 }
 
+//
+
 BTPage *create_page()
 {
+    BTPage *page = malloc(NODE_SIZE);
 
+    page->removed = '0';
+    page->next = -1;
+    page->nodeType = LEAF;
+    page->keyCount = 1;
+
+    BTKey emptyKey = {-1, -1};
+    for (int i = 0; i < TREE_ORDER - 1; i++)
+        page->keys[i] = emptyKey;
+
+    for (int i = 0; i < TREE_ORDER; i++)
+        page->subPages[i] = -1;
+
+    return page;
 }
 
-BTPage *write_page()
+Status write_page(FILE *binFile, BTPage *page)
 {
-    
+    if (!binFile || !page)
+        return FAILURE;
+
+    fwrite(&page->removed, sizeof(char), 1, binFile);
+    fwrite(&page->next, sizeof(int), 1, binFile);
+    fwrite(&page->nodeType, sizeof(int), 1, binFile);
+    fwrite(&page->keyCount, sizeof(int), 1, binFile);
+
+    for (int i = 0; i < TREE_ORDER - 1; i++)
+    {
+        fwrite(&page->keys[i].searchKey, sizeof(int), 1, binFile);
+        fwrite(&page->keys[i].byteOffset, sizeof(int), 1, binFile);
+    }
+
+    for (int i = 0; i < TREE_ORDER; i++)
+    {
+        fwrite(&page->subPages[i], sizeof(int), 1, binFile);
+    }
+
+    return SUCCESS;
 }
 
-BTPage *read_page()
+// todo: add "fread" error handling
+BTPage *read_page(FILE *binFile, int RRN)
 {
+    BTPage *page = create_page();
+    if (!binFile || !page)
+        return NULL;
 
+    fseek(binFile, HEADER_SIZE + (RRN * NODE_SIZE), SEEK_SET);
+
+    fread(&page->removed, sizeof(char), 1, binFile);
+    fread(&page->next, sizeof(int), 1, binFile);
+    fread(&page->nodeType, sizeof(int), 1, binFile);
+    fread(&page->keyCount, sizeof(int), 1, binFile);
+
+    for (int i = 0; i < TREE_ORDER - 1; i++)
+    {
+        fread(&page->keys[i].searchKey, sizeof(int), 1, binFile);
+        fread(&page->keys[i].byteOffset, sizeof(int), 1, binFile);
+    }
+
+    for (int i = 0; i < TREE_ORDER; i++)
+        fread(&page->subPages[i], sizeof(int), 1, binFile);
+
+    return page;
 }
