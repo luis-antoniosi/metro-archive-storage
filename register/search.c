@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "../types.h"
+#include "types.h"
 #include "search.h"
 #include "utils.h"
 

@@ -2,7 +2,7 @@
 #define HEADER_H
 
 #include <stdio.h>
-#include "../types.h"
+#include "types.h"
 
 /**
  * @brief Creates a header struct and sets it with default values

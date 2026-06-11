@@ -2,8 +2,8 @@
 #define BINFILE_H
 
 #include <stdio.h>
-#include "../types.h"
-#include "../register/register.h"
+#include "types.h"
+#include "register/register.h"
 
 // Write file
 /**

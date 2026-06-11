@@ -6,7 +6,6 @@
 #include "header/header.h"
 #include "register/register.h"
 #include "binFile/binFile.h"
-#include "binarioNaTela.h"
 
 #define INPUT_SIZE 64
 
@@ -54,7 +53,7 @@ int main()
                 fclose(bin);
                 bin = NULL;
 
-                BinarioNaTela(outputPath);
+                binary_on_screen(filePath);
             }
             else
             {
@@ -134,7 +133,7 @@ int main()
                 fclose(bin);
                 bin = NULL;
 
-                BinarioNaTela(filePath);
+                binary_on_screen(filePath);
             }
             else
             {

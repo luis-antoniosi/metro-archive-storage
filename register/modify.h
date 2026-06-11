@@ -1,8 +1,8 @@
 #ifndef MODIFY_H
 #define MODIFY_H
 
+#include "types.h"
 #include "register.h"
-#include "../types.h"
 
 /**
  * @brief reads a line from stdin and parses it into a register; space delimited and has quotes

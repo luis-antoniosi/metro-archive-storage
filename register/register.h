@@ -2,7 +2,7 @@
 #define REGISTER_H
 
 #include <stdio.h>
-#include "../types.h"
+#include "types.h"
 
 /**
  * @brief Parses a delimited string buffer (csv) and populates a register

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "header.h"
-#include "../register/register.h"
+#include "register/register.h"
 
 Header *create_header()
 {
@@ -11,7 +11,7 @@ Header *create_header()
     if (!header)
         return NULL;
 
-    header->status = '0';
+    header->status = STATUS_INCONSISTENT;
     header->top = -1;
     header->nextRRN = 0;
     header->numStations = 0;

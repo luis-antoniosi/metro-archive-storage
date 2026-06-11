@@ -1,5 +1,5 @@
 CC	:=	gcc
-CFLAGS	:=	-Wall -Wextra -Werror -Wpedantic -march=native -MMD
+CFLAGS	:=	-Wall -Wextra -Werror -Wpedantic -march=native -MMD -I.
 TARGET	:=	main
 SRCS	:=	$(wildcard *.c) $(wildcard */*.c)
 HDRS	:=	$(wildcard *.h) $(wildcard */*.h)

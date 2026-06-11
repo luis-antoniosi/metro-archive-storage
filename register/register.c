@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../types.h"
+#include "types.h"
 #include "register.h"
 #include "utils.h"
 

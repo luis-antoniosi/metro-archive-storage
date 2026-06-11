@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "binFile.h"
-#include "../header/header.h"
-#include "../register/register.h"
-#include "../register/search.h"
-#include "../register/modify.h"
+#include "header/header.h"
+
+#include "register/register.h"
+#include "register/search.h"
+#include "register/modify.h"
 
 Status write_bin_file(FILE *inputFile, FILE *outputFile)
 {
