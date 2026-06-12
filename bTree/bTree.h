@@ -6,7 +6,7 @@
 
 #define TREE_ORDER 4
 #define HEADER_SIZE 17
-#define NODE_SIZE 53
+#define PAGE_SIZE 53
 
 typedef struct BTHeader {
     char status;
@@ -16,6 +16,7 @@ typedef struct BTHeader {
     int numNodes;   //  0 if the tree is empty
 } BTHeader;
 
+// both fields should be -1 if the page hasn't been filled
 typedef struct BTKey
 {
     int searchKey;
@@ -31,7 +32,7 @@ typedef struct BTPage
     int keyCount;
 
     BTKey keys[TREE_ORDER - 1];
-    int subPages[TREE_ORDER];
+    int subPages[TREE_ORDER];   // -1 for null "pointers"
 } BTPage;
 
 typedef enum NodeType {
@@ -40,12 +41,21 @@ typedef enum NodeType {
     INTERMEDIARY = 1
 } NodeType;
 
-BTHeader *create_header();
-Status write_header(FILE *binFile, BTHeader *header);
-BTHeader *read_header(FILE *binFile);
+typedef enum InsertResult {
+    PROMOTION,
+    NO_PROMOTION,
+    ERROR
+} InsertResult;
+
+BTHeader *create_btheader();
+Status write_btheader(FILE *binFile, BTHeader *header);
+BTHeader *read_btheader(FILE *binFile);
 
 BTPage *create_page();
-Status write_page(FILE *binFile, BTPage *page);
-BTPage *read_page(FILE *binFile, int RRN);
+Status write_page(FILE *binFile, BTPage *page, int rrn);
+BTPage *read_page(FILE *binFile, int rrn);
+
+Status insert_key(FILE *binFile, BTHeader *header, BTKey key);
+BTKey split_page(BTPage *page, BTPage *newPage, BTKey insertKey, int insertRRN);
 
 #endif
