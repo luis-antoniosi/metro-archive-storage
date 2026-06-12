@@ -8,6 +8,8 @@
 #include "register/search.h"
 #include "register/modify.h"
 
+#include "bTree/bTree.h"
+
 Status write_bin_file(FILE *inputFile, FILE *outputFile)
 {
     if (!inputFile || !outputFile)
@@ -274,6 +276,40 @@ Status update_data_where(FILE *binFile, int iterations)
     }
 
     change_status(binFile, STATUS_CONSISTENT);
+
+    return SUCCESS;
+}
+
+Status create_index(FILE *registerFile, FILE *indexFile)
+{
+    if (!registerFile || !indexFile)
+        return FAILURE;
+
+    BTHeader *btHeader = create_btheader();
+    if (!btHeader || (write_btheader(indexFile, btHeader) == FAILURE))
+    {
+        free(btHeader);
+        return FAILURE;
+    }
+    
+    Register *reg;
+    int rrn = 0;
+    
+    fseek(registerFile, HEADER_SIZE, SEEK_SET);
+    while ((reg = read_register(registerFile)))
+    {
+        if (reg->removed != '1')
+        {
+            BTKey key = {reg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)};
+            insert_key(indexFile, btHeader, key);
+        }
+
+        destroy_register(&reg);
+        rrn++;
+    }
+
+    write_btheader(indexFile, btHeader);
+    free(btHeader);
 
     return SUCCESS;
 }

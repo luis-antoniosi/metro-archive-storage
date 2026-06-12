@@ -62,6 +62,12 @@ Status insert_data(FILE *binFile, int iterations);
  */
 Status update_data_where(FILE *binFile, int iterations);
 
+// part 2
+
+Status create_index(FILE *registerFile, FILE *indexFile);
+
+//
+
 // Print binary
 /**
  * @brief Prints a checksum to validate a binary file
