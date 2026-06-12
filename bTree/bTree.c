@@ -136,6 +136,60 @@ BTPage *read_page(FILE *binFile, int rrn)
     return page;
 }
 
+static int binary_search(BTPage *page, int searchKey)
+{
+    int left = 0, right = page->keyCount - 1;
+
+    while (left <= right)
+    {
+        int mid = left + (right - left) / 2;
+
+        if (page->keys[mid].searchKey == searchKey)
+            return mid;
+        else if (page->keys[mid].searchKey < searchKey)
+            left = mid + 1;
+        else
+            right = mid - 1;
+    }
+
+    return -left - 1;
+}
+
+static int search_recursive(FILE *binFile, int currentRRN, int searchKey)
+{
+    if (currentRRN == -1)
+        return -1;
+
+    BTPage *page = read_page(binFile, currentRRN);
+    if (!page)
+        return -1;
+
+    int result = binary_search(page, searchKey);
+
+    if (result >= 0)
+    {
+        int offset = page->keys[result].byteOffset;
+        free(page);
+        return offset;
+    }
+
+    if (page->nodeType == LEAF)
+    {
+        free(page);
+        return -1;
+    }
+
+    int childRRN = page->subPages[-result - 1];
+    free(page);
+
+    return search_recursive(binFile, childRRN, searchKey);
+}
+
+int search_key(FILE *binFile, BTHeader *header, int searchKey)
+{
+    return search_recursive(binFile, header->rootNode, searchKey);
+}
+
 static void order_page(BTKey *workingKeys, int *workingPages, BTKey insertKey, int insertRRN, int count)
 {
     int pos = count;

@@ -55,6 +55,8 @@ BTPage *create_page();
 Status write_page(FILE *binFile, BTPage *page, int rrn);
 BTPage *read_page(FILE *binFile, int rrn);
 
+int search_key(FILE *binFile, BTHeader *header, int searchKey);
+
 Status insert_key(FILE *binFile, BTHeader *header, BTKey key);
 BTKey split_page(BTPage *page, BTPage *newPage, BTKey insertKey, int insertRRN);
 

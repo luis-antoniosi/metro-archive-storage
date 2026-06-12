@@ -53,7 +53,7 @@ int main()
                 fclose(bin);
                 bin = NULL;
 
-                binary_on_screen(filePath);
+                binary_on_screen(outputPath);
             }
             else
             {

@@ -201,23 +201,23 @@ Status insert_data(FILE *binFile, int iterations)
         return FAILURE;
 
     change_status(binFile, STATUS_INCONSISTENT);
-
+    Header *currHeader = read_header(binFile);
+    if (!currHeader)
+        return FAILURE;
+    
     for (int i = 0; i < iterations; i++)
     {
-        Register *currentReg = NULL;
-        currentReg = input_register();
+        Register *currentReg = input_register();
 
         if (currentReg)
         {
-            Header *currHeader = read_header(binFile);
             insert_register(binFile, currentReg, currHeader);
-
-            write_header(binFile, currHeader);
-
             destroy_register(&currentReg);
-            free(currHeader);
         }
     }
+    
+    write_header(binFile, currHeader);
+    free(currHeader);
 
     if (update_header_count(binFile) == FAILURE)
         return FAILURE;
@@ -291,10 +291,10 @@ Status create_index(FILE *registerFile, FILE *indexFile)
         free(btHeader);
         return FAILURE;
     }
-    
+
     Register *reg;
     int rrn = 0;
-    
+
     fseek(registerFile, HEADER_SIZE, SEEK_SET);
     while ((reg = read_register(registerFile)))
     {
@@ -310,6 +310,8 @@ Status create_index(FILE *registerFile, FILE *indexFile)
 
     write_btheader(indexFile, btHeader);
     free(btHeader);
+
+    change_status(indexFile, STATUS_CONSISTENT);
 
     return SUCCESS;
 }
