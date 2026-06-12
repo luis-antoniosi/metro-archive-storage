@@ -204,7 +204,7 @@ Status insert_data(FILE *binFile, int iterations)
     Header *currHeader = read_header(binFile);
     if (!currHeader)
         return FAILURE;
-    
+
     for (int i = 0; i < iterations; i++)
     {
         Register *currentReg = input_register();
@@ -215,7 +215,7 @@ Status insert_data(FILE *binFile, int iterations)
             destroy_register(&currentReg);
         }
     }
-    
+
     write_header(binFile, currHeader);
     free(currHeader);
 
@@ -312,6 +312,68 @@ Status create_index(FILE *registerFile, FILE *indexFile)
     free(btHeader);
 
     change_status(indexFile, STATUS_CONSISTENT);
+
+    return SUCCESS;
+}
+
+Status search_with_index(FILE *registerFile, FILE *indexFile, int iterations)
+{
+    if (!registerFile || !indexFile)
+        return FAILURE;
+
+    BTHeader *btHeader = read_btheader(indexFile);
+    if (!btHeader)
+        return FAILURE;
+
+    for (int i = 0; i < iterations; i++)
+    {
+        int pairIterations = 0;
+        SearchField *filters = get_all_search_fields(&pairIterations);
+
+        int stationCode = -1;
+        for (int j = 0; j < pairIterations; j++)
+        {
+            if (strcmp(filters[j].name, "codEstacao") == 0)
+            {
+                stationCode = atoi(filters[j].value);
+                break;
+            }
+        }
+
+        int anyMatches = 0;
+        if (stationCode != -1)
+        {
+            int byteOffset = search_key(indexFile, btHeader, stationCode);
+            if (byteOffset != -1)
+            {
+                fseek(registerFile, byteOffset, SEEK_SET);
+                Register *reg = read_register(registerFile);
+                if (reg && reg->removed != '1')
+                {
+                    print_register(reg);
+                    anyMatches = 1;
+                }
+                destroy_register(&reg);
+            }
+        }
+        else
+        {
+            fseek(registerFile, HEADER_SIZE, SEEK_SET);
+            Register *reg = NULL;
+            while ((reg = check_register_field_search(registerFile, filters, pairIterations)))
+            {
+                print_register(reg);
+                anyMatches = 1;
+                destroy_register(&reg);
+            }
+        }
+
+        if (!anyMatches)
+            printf("Registro inexistente.\n");
+
+        printf("\n");
+        free(filters);
+    }
 
     return SUCCESS;
 }

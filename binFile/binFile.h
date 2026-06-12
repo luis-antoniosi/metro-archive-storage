@@ -65,6 +65,7 @@ Status update_data_where(FILE *binFile, int iterations);
 // part 2
 
 Status create_index(FILE *registerFile, FILE *indexFile);
+Status search_with_index(FILE *registerFile, FILE *indexFile, int iterations);
 Status insert_index(FILE *registerFile, FILE *indexFile, int iterations);
 
 //

@@ -222,6 +222,30 @@ int main()
             print_file_failure();
         }
         break;
+    case '8':
+        if (sscanf(buffer, "%*c %s %s %d", filePath, outputPath, &iterations) == 3)
+        {
+            bin = fopen(filePath, "rb");
+            FILE *index = fopen(outputPath, "rb");
+
+            if (bin && index)
+            {
+                search_with_index(bin, index, iterations);
+                fclose(bin);
+
+                fclose(index);
+                bin = NULL;
+            }
+            else
+            {
+                print_file_failure();
+            }
+        }
+        else
+        {
+            print_file_failure();
+        }
+        break;
     default:
         printf("Invalid option! The cases go from 1 to 6.\n");
         break;
