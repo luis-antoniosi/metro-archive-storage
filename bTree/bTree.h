@@ -8,6 +8,8 @@
 #define HEADER_SIZE 17
 #define PAGE_SIZE 53
 
+#define MIN_OCCUPANCY ((TREE_ORDER + 2 - 1) / 2) - 1
+
 typedef struct BTHeader {
     char status;
     int rootNode;   // -1 if the tree is empty
@@ -47,6 +49,12 @@ typedef enum InsertResult {
     ERROR
 } InsertResult;
 
+typedef enum RemoveResult {
+    REMOVED,
+    NOT_FOUND,
+    REMOVE_ERROR
+} RemoveResult;
+
 BTHeader *create_btheader();
 Status write_btheader(FILE *binFile, BTHeader *header);
 BTHeader *read_btheader(FILE *binFile);
@@ -59,5 +67,7 @@ int search_key(FILE *binFile, BTHeader *header, int searchKey);
 
 Status insert_key(FILE *binFile, BTHeader *header, BTKey key);
 BTKey split_page(BTPage *page, BTPage *newPage, BTKey insertKey, int insertRRN);
+
+Status remove_key(FILE *binFile, BTHeader *header, int removedKey);
 
 #endif

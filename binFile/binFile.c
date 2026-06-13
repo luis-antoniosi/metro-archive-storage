@@ -143,6 +143,7 @@ Status print_all_data_where(FILE *binFile, int iterations)
 }
 
 // delete
+// todo: combine this with select?
 Status delete_all_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -404,7 +405,7 @@ Status insert_index(FILE *registerFile, FILE *indexFile, int iterations)
             if (search_key(indexFile, btHeader, currentReg->stationCode) == -1)
             {
                 int rrn = (dataHeader->top != -1) ? dataHeader->top : dataHeader->nextRRN;
-                
+
                 insert_register(registerFile, currentReg, dataHeader);
                 insert_key(indexFile, btHeader, (BTKey){currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)});
 
@@ -424,6 +425,89 @@ Status insert_index(FILE *registerFile, FILE *indexFile, int iterations)
         return FAILURE;
 
     change_status(indexFile, STATUS_CONSISTENT);
+
+    return SUCCESS;
+}
+
+Status delete_index(FILE *registerFile, FILE *indexFile, int iterations)
+{
+    if (!registerFile || !indexFile)
+        return FAILURE;
+
+    change_status(registerFile, STATUS_INCONSISTENT);
+    change_status(indexFile, STATUS_INCONSISTENT);
+
+    BTHeader *btHeader = read_btheader(indexFile);
+    if (!btHeader)
+    {
+        free(btHeader);
+        return FAILURE;
+    }
+
+    for (int i = 0; i < iterations; i++)
+    {
+        fseek(registerFile, HEADER_SIZE, SEEK_SET);
+
+        int pairIterations = 0;
+        SearchField *filters = get_all_search_fields(&pairIterations);
+
+        int stationCode = -1;
+        for (int j = 0; j < pairIterations; j++)
+        {
+            if (strcmp(filters[j].name, "codEstacao") == 0)
+            {
+                stationCode = atoi(filters[j].value);
+                break;
+            }
+        }
+
+        if (stationCode != -1)
+        {
+            int byteOffset = search_key(indexFile, btHeader, stationCode);
+
+            if (byteOffset != -1)
+            {
+                fseek(registerFile, byteOffset, SEEK_SET);
+
+                Register *reg = read_register(registerFile);
+
+                if (reg && reg->removed != '1')
+                {
+                    remove_register(registerFile);
+                    remove_key(indexFile, btHeader, stationCode);
+                }
+
+                destroy_register(&reg);
+            }
+        }
+        else
+        {
+            Register *reg = NULL;
+            while ((reg = check_register_field_search(registerFile, filters, pairIterations)))
+            {   
+                remove_register(registerFile);
+                fseek(registerFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
+
+                remove_key(indexFile, btHeader, reg->stationCode);
+                destroy_register(&reg);
+            }
+        }
+
+        free(filters);
+    }
+
+    write_btheader(indexFile, btHeader);
+
+    if (update_header_count(registerFile) == FAILURE)
+    {
+        free(btHeader);
+        return FAILURE;
+    }
+
+    change_status(registerFile, STATUS_CONSISTENT);
+    change_status(indexFile, STATUS_CONSISTENT);
+
+    free(btHeader);
 
     return SUCCESS;
 }

@@ -28,22 +28,22 @@ int main()
     char buffer[BUF_SIZE];
     char filePath[INPUT_SIZE], outputPath[INPUT_SIZE];
     int iterations = 0;
-    char option = '0';
+    int option = -1;
 
     if (!fgets(buffer, BUF_SIZE, stdin))
         return 1;
 
-    if (sscanf(buffer, "%c", &option) != 1)
+    if (sscanf(buffer, "%d", &option) != 1)
     {
-        printf("Option is not a character\n");
+        printf("Option is not a number\n");
         return 1;
     }
 
     switch (option)
     {
     // turning .csv into .bin, prints checksum
-    case '1':
-        if (sscanf(buffer, "%*c %s %s", filePath, outputPath) == 2) // %*c -> the * ignores the char
+    case 1:
+        if (sscanf(buffer, "%*d %s %s", filePath, outputPath) == 2) // %*d -> the * ignores the int
         {
             FILE *csv = fopen(filePath, "r");
             bin = fopen(outputPath, "wb+");
@@ -74,8 +74,8 @@ int main()
 
         break;
     // prints all registers
-    case '2':
-        if (sscanf(buffer, "%*c %s", filePath) == 1)
+    case 2:
+        if (sscanf(buffer, "%*d %s", filePath) == 1)
         {
             bin = fopen(filePath, "rb");
 
@@ -98,8 +98,8 @@ int main()
 
         break;
     // prints all registers where (search criteria)
-    case '3':
-        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
+    case 3:
+        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
             bin = fopen(filePath, "rb");
 
@@ -121,8 +121,8 @@ int main()
         }
         break;
     // deletes registers where (search criteria)
-    case '4':
-        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
+    case 4:
+        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
             bin = fopen(filePath, "rb+");
 
@@ -146,8 +146,8 @@ int main()
         }
         break;
     // inserts a register
-    case '5':
-        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
+    case 5:
+        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
             bin = fopen(filePath, "rb+");
 
@@ -171,8 +171,8 @@ int main()
         }
         break;
     // updates registers where (search criteria)
-    case '6':
-        if (sscanf(buffer, "%*c %s %d", filePath, &iterations) == 2)
+    case 6:
+        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
             bin = fopen(filePath, "rb+");
 
@@ -195,8 +195,8 @@ int main()
             print_file_failure();
         }
         break;
-    case '7':
-        if (sscanf(buffer, "%*c %s %s", filePath, outputPath) == 2)
+    case 7:
+        if (sscanf(buffer, "%*d %s %s", filePath, outputPath) == 2)
         {
             bin = fopen(filePath, "rb");
             FILE *index = fopen(outputPath, "wb+");
@@ -222,8 +222,8 @@ int main()
             print_file_failure();
         }
         break;
-    case '8':
-        if (sscanf(buffer, "%*c %s %s %d", filePath, outputPath, &iterations) == 3)
+    case 8:
+        if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
         {
             bin = fopen(filePath, "rb");
             FILE *index = fopen(outputPath, "rb");
@@ -246,8 +246,8 @@ int main()
             print_file_failure();
         }
         break;
-    case '9':
-        if (sscanf(buffer, "%*c %s %s %d", filePath, outputPath, &iterations) == 3)
+    case 9:
+        if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
         {
             bin = fopen(filePath, "rb+");
             FILE *index = fopen(outputPath, "rb+");
@@ -261,6 +261,34 @@ int main()
 
                 fclose(index);
                 
+                binary_on_screen(filePath);
+                binary_on_screen(outputPath);
+            }
+            else
+            {
+                print_file_failure();
+            }
+        }
+        else
+        {
+            print_file_failure();
+        }
+        break;
+    case 10:
+        if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
+        {
+            bin = fopen(filePath, "rb+");
+            FILE *index = fopen(outputPath, "rb+");
+
+            if (bin && index)
+            {
+                delete_index(bin, index, iterations);
+                
+                fclose(bin);
+                bin = NULL;
+
+                fclose(index);
+
                 binary_on_screen(filePath);
                 binary_on_screen(outputPath);
             }

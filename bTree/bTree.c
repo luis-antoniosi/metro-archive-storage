@@ -152,6 +152,7 @@ BTPage *read_page(FILE *binFile, int rrn)
     return page;
 }
 
+// is this even needed
 static int binary_search(BTPage *page, int searchKey)
 {
     int left = 0, right = page->keyCount - 1;
@@ -214,7 +215,7 @@ static int allocate_page(FILE *binFile, BTHeader *header)
 
         BTPage *page = read_page(binFile, rrn);
         header->top = page->next;
-        
+
         free(page);
 
         header->numNodes++;
@@ -402,4 +403,278 @@ BTKey split_page(BTPage *page, BTPage *newPage, BTKey insertKey, int insertRRN)
     newPage->nodeType = page->nodeType;
 
     return promoKey;
+}
+
+static BTPage *get_page_successor(FILE *binFile, int rightChildRRN, int *successorRRN)
+{
+    int rrn = rightChildRRN;
+    BTPage *current = read_page(binFile, rrn);
+
+    while (current->nodeType != LEAF)
+    {
+        int nextRRN = current->subPages[0];
+        free(current);
+        rrn = nextRRN;
+        current = read_page(binFile, rrn);
+    }
+
+    *successorRRN = rrn;
+    return current;
+}
+
+static void redistribute_left(FILE *binFile, BTPage *parent, int childIdx, int parentRRN, int childRRN)
+{
+    int siblingRRN = parent->subPages[childIdx - 1];
+    BTPage *sibling = read_page(binFile, siblingRRN);
+    BTPage *child = read_page(binFile, childRRN);
+
+    if (!sibling || !child)
+        return;
+
+    // shift everything right
+    for (int i = child->keyCount; i > 0; i--)
+        child->keys[i] = child->keys[i - 1];
+    for (int i = child->keyCount + 1; i > 0; i--)
+        child->subPages[i] = child->subPages[i - 1];
+
+    child->keys[0] = parent->keys[childIdx - 1];
+    child->subPages[0] = sibling->subPages[sibling->keyCount];
+    child->keyCount++;
+
+    parent->keys[childIdx - 1] = sibling->keys[sibling->keyCount - 1];
+
+    sibling->keys[sibling->keyCount - 1] = (BTKey){-1, -1};
+    sibling->subPages[sibling->keyCount] = -1;
+    sibling->keyCount--;
+
+    write_page(binFile, parent, parentRRN);
+    write_page(binFile, child, childRRN);
+    write_page(binFile, sibling, siblingRRN);
+
+    free(sibling);
+    free(child);
+}
+
+static void redistribute_right(FILE *binFile, BTPage *parent, int childIdx, int parentRRN, int childRRN)
+{
+    int siblingRRN = parent->subPages[childIdx + 1];
+    BTPage *sibling = read_page(binFile, siblingRRN);
+    BTPage *child = read_page(binFile, childRRN);
+
+    if (!sibling || !child)
+        return;
+
+    child->keys[child->keyCount] = parent->keys[childIdx];
+    child->subPages[child->keyCount + 1] = sibling->subPages[0];
+    child->keyCount++;
+
+    parent->keys[childIdx] = sibling->keys[0];
+
+    // shift everything left
+    for (int i = 0; i < sibling->keyCount - 1; i++)
+        sibling->keys[i] = sibling->keys[i + 1];
+    for (int i = 0; i < sibling->keyCount; i++)
+        sibling->subPages[i] = sibling->subPages[i + 1];
+
+    sibling->keys[sibling->keyCount - 1] = (BTKey){-1, -1};
+    sibling->subPages[sibling->keyCount] = -1;
+    sibling->keyCount--;
+
+    write_page(binFile, parent, parentRRN);
+    write_page(binFile, child, childRRN);
+    write_page(binFile, sibling, siblingRRN);
+
+    free(sibling);
+    free(child);
+}
+
+static void deallocate_key(BTPage *page, int idx)
+{
+    for (int i = idx; i < page->keyCount - 1; i++)
+        page->keys[i] = page->keys[i + 1];
+
+    page->keys[page->keyCount - 1] = (BTKey){-1, -1};
+    page->keyCount--;
+}
+
+static void deallocate_page(FILE *binFile, BTHeader *header, int rrn)
+{
+    BTPage *page = read_page(binFile, rrn);
+    page->removed = '1';
+
+    page->next = header->top;
+    header->top = rrn;
+
+    write_page(binFile, page, rrn);
+    header->numNodes--;
+
+    free(page);
+}
+
+static void merge_children(FILE *binFile, BTHeader *header, BTPage *parent, int childIdx, int parentRRN, int childRRN)
+{
+    int siblingRRN = parent->subPages[childIdx - 1];
+    BTPage *sibling = read_page(binFile, siblingRRN);
+    BTPage *child = read_page(binFile, childRRN);
+
+    if (!sibling || !child)
+    {
+        if (sibling)
+            free(sibling);
+        if (child)
+            free(child);
+        return;
+    }
+
+    sibling->keys[sibling->keyCount] = parent->keys[childIdx - 1];
+    sibling->subPages[sibling->keyCount + 1] = child->subPages[0];
+    sibling->keyCount++;
+
+    int offset = sibling->keyCount;
+
+    for (int i = 0; i < child->keyCount; i++)
+        sibling->keys[offset + i] = child->keys[i];
+
+    for (int i = 1; i <= child->keyCount; i++)
+        sibling->subPages[offset + i] = child->subPages[i];
+
+    sibling->keyCount += child->keyCount;
+
+    for (int i = childIdx - 1; i < parent->keyCount - 1; i++)
+        parent->keys[i] = parent->keys[i + 1];
+    for (int i = childIdx; i < parent->keyCount; i++)
+        parent->subPages[i] = parent->subPages[i + 1];
+
+    parent->keys[parent->keyCount - 1] = (BTKey){-1, -1};
+    parent->subPages[parent->keyCount] = -1;
+    parent->keyCount--;
+
+    if (parent->keyCount == 0 && parent->nodeType == ROOT)
+    {
+        parent->removed = '1';
+        parent->next = header->top;
+        header->top = parentRRN;
+        header->numNodes--;
+
+        sibling->nodeType = ROOT;
+        header->rootNode = siblingRRN;
+    }
+
+    write_page(binFile, sibling, siblingRRN);
+    write_page(binFile, parent, parentRRN);
+
+    deallocate_page(binFile, header, childRRN);
+
+    free(sibling);
+    free(child);
+}
+
+static RemoveResult remove_loop(FILE *binFile, BTHeader *header, int currentRRN, int searchKey)
+{
+    if (currentRRN == -1)
+        return NOT_FOUND;
+
+    BTPage *page = read_page(binFile, currentRRN);
+    if (!page)
+        return REMOVE_ERROR;
+
+    int pos = binary_search(page, searchKey);
+
+    // case 1 : key in the current page
+    if (pos < page->keyCount && page->keys[pos].searchKey == searchKey)
+    {
+        // if its a leaf, just remove it
+        if (page->nodeType == LEAF)
+        {
+            deallocate_key(page, pos);
+            write_page(binFile, page, currentRRN);
+            free(page);
+            return REMOVED;
+        }
+        else
+        {
+            // not a leaf, exchange with successor
+            int successorRRN = -1;
+            BTPage *successor = get_page_successor(binFile, page->subPages[pos + 1], &successorRRN); // ?
+            if (!successor)
+            {
+                free(page);
+                return REMOVE_ERROR;
+            }
+
+            // overwrite the key
+            page->keys[pos] = successor->keys[0];
+            write_page(binFile, page, currentRRN);
+
+            searchKey = successor->keys[0].searchKey;
+            pos = pos + 1;
+
+            free(successor);
+        }
+    }
+    // case 2: key not in the current page
+    if (page->nodeType == LEAF)
+    {
+        free(page);
+        return NOT_FOUND;
+    }
+
+    int childRRN = page->subPages[pos]; // ?
+    BTPage *childPage = read_page(binFile, childRRN);
+    if (!childPage)
+    {
+        free(page);
+        return REMOVE_ERROR;
+    }
+
+    // checking for underflow beforehand
+    if (childPage->keyCount == MIN_OCCUPANCY)
+    {
+        int leftSiblingRRN = (pos > 0) ? page->subPages[pos - 1] : -1;
+        int rightSiblingRRN = (pos < page->keyCount) ? page->subPages[pos + 1] : -1;
+
+        BTPage *leftSiblingPage = (leftSiblingRRN != -1) ? read_page(binFile, leftSiblingRRN) : NULL;
+        BTPage *rightSiblingPage = (rightSiblingRRN != -1) ? read_page(binFile, rightSiblingRRN) : NULL;
+
+        if (leftSiblingPage && leftSiblingPage->keyCount > MIN_OCCUPANCY)
+            redistribute_left(binFile, page, pos, currentRRN, childRRN);
+        else if (rightSiblingPage && rightSiblingPage->keyCount > MIN_OCCUPANCY)
+            redistribute_right(binFile, page, pos, currentRRN, childRRN);
+        else
+        {
+            if (leftSiblingRRN != -1)
+            {
+                merge_children(binFile, header, page, pos, currentRRN, childRRN);
+                childRRN = leftSiblingRRN;
+            }
+            else
+                merge_children(binFile, header, page, pos + 1, currentRRN, page->subPages[pos + 1]);
+        }
+
+        if (leftSiblingPage)
+            free(leftSiblingPage);
+        if (rightSiblingPage)
+            free(rightSiblingPage);
+    }
+
+    free(childPage);
+    free(page);
+
+    return remove_loop(binFile, header, childRRN, searchKey);
+}
+
+Status remove_key(FILE *binFile, BTHeader *header, int removedKey)
+{
+    if (!binFile || !header)
+        return FAILURE;
+
+    if (header->rootNode == -1)
+        return FAILURE;
+
+    RemoveResult result = remove_loop(binFile, header, header->rootNode, removedKey);
+
+    if (result == NOT_FOUND || result == REMOVE_ERROR)
+        return FAILURE;
+
+    return SUCCESS;
 }
