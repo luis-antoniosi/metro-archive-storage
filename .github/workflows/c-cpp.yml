@@ -1,0 +1,47 @@
+name: C/C++ CI
+
+on:
+    push:
+        branches: ["main"]
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Build
+              run: make
+
+            - name: Run tests
+              run: |
+                  passed=0
+                  failed=0
+                  for infile in $(ls tests/*.in | sort -V); do
+                      cp tests/files/* .
+                      name=$(basename "$infile" .in)
+                      outfile="tests/$name.out"
+
+                      if [ ! -f "$outfile" ]; then
+                          echo "SKIP $name (no .out file)"
+                          continue
+                      fi
+
+                      actual=$(./main < "$infile" 2>/dev/null)
+                      expected=$(cat "$outfile")
+
+                      if [ "$actual" = "$expected" ]; then
+                          echo "PASS $name"
+                          passed=$((passed + 1))
+                      else
+                          echo "FAIL $name"
+                          echo "  expected:   $expected"
+                          echo "  actual:     $actual"
+                          failed=$((failed + 1))
+                      fi
+                  done
+
+                  echo ""
+                  echo "Results: $passed passed, $failed failed"
+                  [ $failed -eq 0 ]

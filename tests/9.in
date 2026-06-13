@@ -1,0 +1,51 @@
+9 variasInsercoes.bin variasInsercoesBTree.bin 50
+1 "Tucuruvi" 1 "Azul" 2 992 NULO NULO
+2 "Parada Inglesa" 1 "Azul" 3 1057 NULO NULO
+3 "Jardim Sao Paulo" 1 "Azul" 4 1474 NULO NULO
+4 "Santana" 1 "Azul" 5 740 NULO NULO
+5 "Carandiru" 1 "Azul" 6 760 NULO NULO
+6 "Portuguesa-Tiete" 1 "Azul" 7 1245 NULO NULO
+7 "Armenia" 1 "Azul" 8 691 NULO NULO
+8 "Tiradentes" 1 "Azul" 9 658 NULO NULO
+9 "Luz" 1 "Azul" 10 762 4 55
+10 "Sao Bento" 1 "Azul" 11 739 NULO NULO
+11 "Se" 1 "Azul" 12 544 3 43
+12 "Japao-Liberdade" 1 "Azul" 13 825 NULO NULO
+13 "Sao Joaquim" 1 "Azul" 14 843 NULO NULO
+14 "Vergueiro" 1 "Azul" 15 683 NULO NULO
+15 "Paraiso" 1 "Azul" 16 702 2 29
+16 "Ana Rosa" 1 "Azul" 17 973 2 30
+17 "Vila Mariana" 1 "Azul" 18 1138 NULO NULO
+18 "Santa Cruz" 1 "Azul" 19 1312 5 81
+19 "Praca da arvore" 1 "Azul" 20 896 NULO NULO
+20 "Saude" 1 "Azul" 21 790 NULO NULO
+21 "Sao Judas" 1 "Azul" 22 1096 NULO NULO
+22 "Conceicao" 1 "Azul" 23 1183 NULO NULO
+23 "Jabaquara" 1 "Azul" NULO NULO NULO NULO
+24 "Vila Madalena" 2 "Verde" 25 1489 NULO NULO
+25 "Sumare" 2 "Verde" 26 769 NULO NULO
+26 "Clinicas" 2 "Verde" 27 1063 NULO NULO
+27 "Consolacao" 2 "Verde" 28 982 4 58
+28 "Trianon-Masp" 2 "Verde" 29 954 NULO NULO
+29 "Brigadeiro" 2 "Verde" 30 1015 NULO NULO
+30 "Paraiso" 2 "Verde" 31 706 1 15
+31 "Ana Rosa" 2 "Verde" 32 1526 1 16
+32 "Chacara Klabin" 2 "Verde" 33 1119 5 82
+33 "Santos-Imigrantes" 2 "Verde" 34 1121 NULO NULO
+34 "Alto do Ipiranga" 2 "Verde" 35 900 NULO NULO
+35 "Sacoma" 2 "Verde" 36 1702 NULO NULO
+36 "Tamanduatei" 2 "Verde" 37 1280 10 156
+37 "Vila Prudente" 2 "Verde" NULO NULO 15 83
+38 "Palmeiras-Barra Funda" 3 "Vermelha" 39 1544 7 110
+39 "Marechal Deodoro" 3 "Vermelha" 40 926 NULO NULO
+40 "Santa Cecilia" 3 "Vermelha" 41 820 NULO NULO
+41 "Republica" 3 "Vermelha" 42 606 4 56
+42 "Anhangabau" 3 "Vermelha" 43 652 NULO NULO
+43 "Se" 3 "Vermelha" 44 727 1 11
+44 "Pedro II" 3 "Vermelha" 45 1044 NULO NULO
+45 "Bras" 3 "Vermelha" 46 873 13 196
+46 "Bresser-Mooca" 3 "Vermelha" 47 1825 NULO NULO
+47 "Belem" 3 "Vermelha" 48 1427 NULO NULO
+48 "Tatuape" 3 "Vermelha" 49 1280 12 183
+49 "Carrao" 3 "Vermelha" 50 2280 NULO NULO
+50 "Penha" 3 "Vermelha" 51 1183 NULO NULO

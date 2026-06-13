@@ -1,0 +1,5 @@
+8 estacoes.bin estacoesBTree.bin 4
+1 codEstacao 10
+1 codLinha 15 
+2 codEstacao 100 distProxEstacao 4960
+1 nomeLinha "Rubi"
