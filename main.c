@@ -246,6 +246,34 @@ int main()
             print_file_failure();
         }
         break;
+    case '9':
+        if (sscanf(buffer, "%*c %s %s %d", filePath, outputPath, &iterations) == 3)
+        {
+            bin = fopen(filePath, "rb+");
+            FILE *index = fopen(outputPath, "rb+");
+
+            if (bin && index)
+            {
+                insert_index(bin, index, iterations);
+                change_status(bin, STATUS_CONSISTENT);
+                fclose(bin);
+                bin = NULL;
+
+                fclose(index);
+                
+                binary_on_screen(filePath);
+                binary_on_screen(outputPath);
+            }
+            else
+            {
+                print_file_failure();
+            }
+        }
+        else
+        {
+            print_file_failure();
+        }
+        break;
     default:
         printf("Invalid option! The cases go from 1 to 6.\n");
         break;

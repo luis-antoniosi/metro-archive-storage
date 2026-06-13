@@ -378,6 +378,56 @@ Status search_with_index(FILE *registerFile, FILE *indexFile, int iterations)
     return SUCCESS;
 }
 
+// todo: not happy with the current state of this function
+Status insert_index(FILE *registerFile, FILE *indexFile, int iterations)
+{
+    if (!registerFile || !indexFile)
+        return FAILURE;
+
+    change_status(indexFile, STATUS_INCONSISTENT);
+
+    Header *dataHeader = read_header(registerFile);
+    BTHeader *btHeader = read_btheader(indexFile);
+    if (!dataHeader || !btHeader)
+    {
+        free(dataHeader);
+        free(btHeader);
+        return FAILURE;
+    }
+
+    for (int i = 0; i < iterations; i++)
+    {
+        Register *currentReg = input_register();
+
+        if (currentReg)
+        {
+            if (search_key(indexFile, btHeader, currentReg->stationCode) == -1)
+            {
+                int rrn = (dataHeader->top != -1) ? dataHeader->top : dataHeader->nextRRN;
+
+                insert_register(registerFile, currentReg, dataHeader);
+                insert_key(indexFile, btHeader, (BTKey){currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)});
+
+                write_btheader(indexFile, btHeader);
+            }
+
+            destroy_register(&currentReg);
+        }
+    }
+
+    write_header(registerFile, dataHeader);
+    write_btheader(indexFile, btHeader);
+    free(dataHeader);
+    free(btHeader);
+
+    if (update_header_count(registerFile) == FAILURE)
+        return FAILURE;
+
+    change_status(indexFile, STATUS_CONSISTENT);
+
+    return SUCCESS;
+}
+
 void binary_on_screen(char *fileName)
 {
     FILE *binFile = NULL;

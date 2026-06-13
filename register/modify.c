@@ -71,6 +71,7 @@ Register *input_register()
 
 // Insertion
 
+// change some variable names
 Status insert_register(FILE *binFile, Register *data, Header *header)
 {
     if (!binFile || !data || !header)

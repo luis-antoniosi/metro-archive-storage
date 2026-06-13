@@ -1,6 +1,10 @@
 .vscode
 *.bin
 *.zip
+*.out
+*.in
+
+!tests/*
 
 # Prerequisites
 *.d
@@ -34,7 +38,6 @@
 
 # Executables
 *.exe
-*.out
 *.app
 *.i*86
 *.x86_64
