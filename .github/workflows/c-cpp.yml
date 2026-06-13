@@ -19,7 +19,7 @@ jobs:
                   passed=0
                   failed=0
                   for infile in $(ls tests/*.in | sort -V); do
-                      cp tests/files/* .
+                      cp tests/files/* . 2>/dev/null || true
                       name=$(basename "$infile" .in)
                       outfile="tests/$name.out"
 
@@ -40,6 +40,10 @@ jobs:
                           echo "  actual:     $actual"
                           failed=$((failed + 1))
                       fi
+
+                      for f in *.bin; do
+                          [ -f "tests/files/$f" ] || rm -f "$f"
+                      done
                   done
 
                   echo ""
