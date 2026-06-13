@@ -206,6 +206,25 @@ int search_key(FILE *binFile, BTHeader *header, int searchKey)
     return search_recursive(binFile, header->rootNode, searchKey);
 }
 
+static int allocate_page(FILE *binFile, BTHeader *header)
+{
+    if (header->top != -1)
+    {
+        int rrn = header->top;
+
+        BTPage *page = read_page(binFile, rrn);
+        header->top = page->next;
+        
+        free(page);
+
+        header->numNodes++;
+        return rrn;
+    }
+
+    header->numNodes++;
+    return header->nextRRN++;
+}
+
 static void order_page(BTKey *workingKeys, int *workingPages, BTKey insertKey, int insertRRN, int count)
 {
     int pos = count;
@@ -227,8 +246,11 @@ static InsertResult insert_loop(FILE *binFile, BTHeader *header, int currentRRN,
         return ERROR;
 
     int pos = 0;
+    // todo: change with binary search(?)
     while (pos < page->keyCount && page->keys[pos].searchKey < key.searchKey)
+    {
         pos++;
+    }
 
     if (pos < page->keyCount && page->keys[pos].searchKey == key.searchKey)
     {
@@ -268,7 +290,7 @@ static InsertResult insert_loop(FILE *binFile, BTHeader *header, int currentRRN,
         newPage->nodeType = page->nodeType;
 
         *promotedKey = split_page(page, newPage, *promotedKey, *rightChildRRN);
-        *rightChildRRN = header->nextRRN;
+        *rightChildRRN = allocate_page(binFile, header);
 
         if (page->nodeType == ROOT)
         {
@@ -277,10 +299,7 @@ static InsertResult insert_loop(FILE *binFile, BTHeader *header, int currentRRN,
         }
 
         write_page(binFile, page, currentRRN);
-        write_page(binFile, newPage, header->nextRRN);
-
-        header->nextRRN++;
-        header->numNodes++;
+        write_page(binFile, newPage, *rightChildRRN);
 
         free(page);
         free(newPage);
@@ -296,7 +315,7 @@ Status insert_key(FILE *binFile, BTHeader *header, BTKey key)
     if (search_key(binFile, header, key.searchKey) != -1)
         return FAILURE;
 
-    // if tree is empty, insert a new page as root (which for some reason needs to be -1, since it's also a LEAF)
+    // if tree is empty, insert a new page as root (which for some reason needs to have nodeType = -1, since it's also a LEAF)
     if (header->rootNode == -1)
     {
         BTPage *root = create_page();
@@ -304,12 +323,10 @@ Status insert_key(FILE *binFile, BTHeader *header, BTKey key)
         root->keys[0] = key;
         root->keyCount = 1;
 
-        header->rootNode = header->nextRRN;
+        header->rootNode = allocate_page(binFile, header);
 
         write_page(binFile, root, header->rootNode);
         // still need to actually update this header
-        header->nextRRN++;
-        header->numNodes++;
 
         free(root);
         return SUCCESS;
@@ -333,11 +350,8 @@ Status insert_key(FILE *binFile, BTHeader *header, BTKey key)
         newRoot->subPages[0] = header->rootNode;
         newRoot->subPages[1] = rightChildRRN;
 
-        header->rootNode = header->nextRRN;
+        header->rootNode = allocate_page(binFile, header);
         write_page(binFile, newRoot, header->rootNode);
-
-        header->nextRRN++;
-        header->numNodes++;
 
         free(newRoot);
     }

@@ -404,7 +404,7 @@ Status insert_index(FILE *registerFile, FILE *indexFile, int iterations)
             if (search_key(indexFile, btHeader, currentReg->stationCode) == -1)
             {
                 int rrn = (dataHeader->top != -1) ? dataHeader->top : dataHeader->nextRRN;
-
+                
                 insert_register(registerFile, currentReg, dataHeader);
                 insert_key(indexFile, btHeader, (BTKey){currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)});
 

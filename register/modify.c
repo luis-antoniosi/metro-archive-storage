@@ -71,7 +71,7 @@ Register *input_register()
 
 // Insertion
 
-// change some variable names
+// todo: change some variable names; nextPosReplacement
 Status insert_register(FILE *binFile, Register *data, Header *header)
 {
     if (!binFile || !data || !header)
