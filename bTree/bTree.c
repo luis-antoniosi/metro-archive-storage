@@ -110,7 +110,6 @@ Status write_page(FILE *binFile, BTPage *page, int rrn)
     return SUCCESS;
 }
 
-// todo: add "fread" error handling
 BTPage *read_page(FILE *binFile, int rrn)
 {
     BTPage *page = create_page();
@@ -119,19 +118,36 @@ BTPage *read_page(FILE *binFile, int rrn)
 
     fseek(binFile, HEADER_SIZE + (rrn * PAGE_SIZE), SEEK_SET);
 
-    fread(&page->removed, sizeof(char), 1, binFile);
-    fread(&page->next, sizeof(int), 1, binFile);
-    fread(&page->nodeType, sizeof(int), 1, binFile);
-    fread(&page->keyCount, sizeof(int), 1, binFile);
+    if (fread(&page->removed, sizeof(char), 1, binFile) != 1 ||
+        fread(&page->next, sizeof(int), 1, binFile) != 1 ||
+        fread(&page->nodeType, sizeof(int), 1, binFile) != 1 ||
+        fread(&page->keyCount, sizeof(int), 1, binFile) != 1)
+    {
+        printf("Unable to read index page.\n");
+        free(page);
+        return NULL;
+    }
 
     for (int i = 0; i < TREE_ORDER - 1; i++)
     {
-        fread(&page->keys[i].searchKey, sizeof(int), 1, binFile);
-        fread(&page->keys[i].byteOffset, sizeof(int), 1, binFile);
+        if (fread(&page->keys[i].searchKey, sizeof(int), 1, binFile) != 1 ||
+            fread(&page->keys[i].byteOffset, sizeof(int), 1, binFile) != 1)
+        {
+            printf("Unable to read read key of index %d", i);
+            free(page);
+            return NULL;
+        }
     }
 
     for (int i = 0; i < TREE_ORDER; i++)
-        fread(&page->subPages[i], sizeof(int), 1, binFile);
+    {
+        if (fread(&page->subPages[i], sizeof(int), 1, binFile) != 1)
+        {
+            printf("Unable to read subPages of index %d", i);
+            free(page);
+            return NULL;
+        }
+    }
 
     return page;
 }
@@ -277,11 +293,14 @@ Status insert_key(FILE *binFile, BTHeader *header, BTKey key)
     if (!binFile || !header)
         return FAILURE;
 
-    // if tree is empty, insert a new page as root
+    if (search_key(binFile, header, key.searchKey) != -1)
+        return FAILURE;
+
+    // if tree is empty, insert a new page as root (which for some reason needs to be -1, since it's also a LEAF)
     if (header->rootNode == -1)
     {
         BTPage *root = create_page();
-        root->nodeType = ROOT;
+        root->nodeType = LEAF; // see comment above
         root->keys[0] = key;
         root->keyCount = 1;
 
