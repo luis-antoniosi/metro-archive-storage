@@ -1,15 +1,14 @@
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
 #include "search.h"
-#include "utils.h"
+#include "parseUtils.h"
 
 // Search, filter.
 
 /**
- * @brief Compares a Register field with a SearchField value
+ * @brief Compares each Register field with a SearchField value
  *
- * @param data Pointer to the register with the file data
+ * @param data Pointer to a Register
  * @param field SearchField containing the column name and value searched
  *
  * @return int Return 1 if equal and 0 if not equal
@@ -40,8 +39,9 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
 {
     Register *currentRegister = NULL;
 
-    while ((currentRegister = read_register(binFile))) // this loop skips any removed registers
+    while ((currentRegister = read_register(binFile))) 
     {
+        // this loop skips any removed registers
         if (currentRegister->removed == '1')
         {
             destroy_register(&currentRegister);
@@ -89,12 +89,12 @@ SearchField *get_all_search_fields(int *pairIterations)
             strcpy(filters[j].name, token);
 
         char quoteBuf[BUF_SIZE];
-        token = check_quotes(strtok(NULL, " \n\r"), quoteBuf);
+        token = check_quotes(strtok(NULL, " \n\r"), quoteBuf); // field's value can have quotes
 
         if (token)
             strcpy(filters[j].value, token);
 
-        if (strcmp(filters[j].value, "NULO") == 0) // checking if the value is NULL
+        if (strcmp(filters[j].value, "NULO") == 0) 
             strcpy(filters[j].value, "-1");
     }
 

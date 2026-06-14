@@ -5,33 +5,46 @@
 #include "types.h"
 
 /**
+ * @struct Header
+ * @brief Represents the header record of the binary data file.
+ */
+typedef struct Header
+{
+    char status;            // STATUS_CONSISTENT or STATUS_INCONSISTENT; see types.h
+    int top;                // byte offset of the last removed register, -1 if there are none
+    int nextRRN;            // initially 0
+    int numStations;        // initially 0
+    int numPairStations;    // initially 0
+} Header;
+
+/**
  * @brief Creates a header struct and sets it with default values
  *
- * @return Header* pointer to the dinamically alocated Header
+ * @return Header* pointer to the dynamically allocated Header
  */
 Header *create_header();
 
 /**
- * @brief writes Header to a file
+ * @brief Writes Header to a file
  *
  * @param binFile File that the header will be written to
- * @param header header to be written
+ * @param header Header to be written
  *
- * @return int returns SUCCESS if sucesseful or FAILURE if not sucesseful
+ * @return SUCCESS or FAILURE
  */
 Status write_header(FILE *binFile, Header *header);
 
 /**
- * @brief reads a Header from a file
+ * @brief Reads a Header from a file
  * 
  * @param binFile File that contains the header
  * 
- * @return header Populated header struct
+ * @return Header* pointing to the the read header
  */
 Header *read_header(FILE *binFile);
 
 /**
- * @brief loads, updates and writes the Header with updated numStations and numPairStations
+ * @brief Loads, updates and writes the file's header with updated numStations and numPairStations
  * 
  * @param binFile Open binary file
  * 
@@ -40,21 +53,11 @@ Header *read_header(FILE *binFile);
 Status update_header_count(FILE *binFile);
 
 /**
- * @brief writes a specified status to the beginning of a file
+ * @brief Writes a specified status to the beginning of a file
  *
  * @param binFile file where the status will be written
  * @param status char for the status; STATUS_CONSISTENT ('1') or STATUS_INCONSISTENT ('0')
  */
 void change_status(FILE *binFile, char status);
-
-/**
- * @brief Recalculates the numStations and numPairStations count
- * 
- * @param binFile Pointer to the open binary file
- * @param header Pointer to the Header struct that will be updated
- * 
- * @return SUCCESS or FAILURE
- */
-Status update_station_counts(FILE *binFile, Header *header);
 
 #endif

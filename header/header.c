@@ -63,35 +63,14 @@ Header *read_header(FILE *binFile)
 
 Status update_header_count(FILE *binFile)
 {
-    Header *fileHeader = read_header(binFile);
-    if (!fileHeader)
+    Header *header = read_header(binFile);
+    if (!header)
         return FAILURE;
 
-    if (update_station_counts(binFile, fileHeader) == FAILURE)
-    {
-        free(fileHeader);
-        return FAILURE;
-    }
-
-    write_header(binFile, fileHeader);
-    free(fileHeader);
-
-    return SUCCESS;
-}
-
-void change_status(FILE *binFile, char status)
-{
-    fseek(binFile, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, binFile);
-    fflush(binFile);
-}
-
-Status update_station_counts(FILE *binFile, Header *header)
-{
     fseek(binFile, HEADER_SIZE, SEEK_SET);
 
     char **seenStations = malloc(EXPECTED_SIZE * sizeof(char *));
-    Pair *seenPairs = malloc(EXPECTED_SIZE * sizeof(Pair));
+    StationPair *seenPairs = malloc(EXPECTED_SIZE * sizeof(StationPair));
 
     if (!seenStations || !seenPairs || !header)
     {
@@ -116,6 +95,7 @@ Status update_station_counts(FILE *binFile, Header *header)
             int isDuplicate = 0;
             for (int i = 0; i < numStations; i++)
             {
+                // current register's station is already in the array, break
                 if (strcmp(seenStations[i], currentRegister->stationName) == 0)
                 {
                     isDuplicate = 1;
@@ -123,10 +103,9 @@ Status update_station_counts(FILE *binFile, Header *header)
                 }
             }
 
+            // current register's station is not in the array, add it
             if (!isDuplicate)
-            {
                 seenStations[numStations++] = strdup(currentRegister->stationName);
-            }
         }
 
         // processing unique pairs
@@ -165,9 +144,16 @@ Status update_station_counts(FILE *binFile, Header *header)
     free(seenPairs);
 
     if (write_header(binFile, header) == FAILURE)
-    {
         return FAILURE;
-    }
+
+    free(header);
 
     return SUCCESS;
+}
+
+void change_status(FILE *binFile, char status)
+{
+    fseek(binFile, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, binFile);
+    fflush(binFile);
 }

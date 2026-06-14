@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "header/header.h" // just for the struct type
 #include "modify.h"
-#include "utils.h"
+#include "parseUtils.h" // check_quotes and check_for_null
 
 // Insert, delete, update.
 
@@ -71,7 +73,7 @@ Register *input_register()
 
 // Insertion
 
-// todo: change some variable names; nextPosReplacement
+// TODO: change some variable names; nextPosReplacement; RRN insertion?
 Status insert_register(FILE *binFile, Register *data, Header *header)
 {
     if (!binFile || !data || !header)
@@ -137,12 +139,12 @@ void remove_register(FILE *binFile)
 
 // Update
 
-// essentially the same as check_match, but applies the field instead
+// essentially the same as check_match from search.c, but applies the field instead
 /**
  * @brief Updates a field of a Register
  *
  * @param data Pointer to the register to be updated
- * @param field populated SearchField struct with the field's name and the new value to be assigned
+ * @param field Populated SearchField struct with the field's name and the new value to be assigned
  */
 static Status update_match(Register *data, SearchField field)
 {

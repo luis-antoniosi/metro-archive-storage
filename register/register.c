@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
 #include "register.h"
-#include "utils.h"
+#include "parseUtils.h" // custom_strtok and check_for_null
 
 // Parsing, writing, reading and printing.
 
