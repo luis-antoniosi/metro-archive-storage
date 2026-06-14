@@ -52,7 +52,8 @@ typedef enum InsertResult {
 typedef enum RemoveResult {
     REMOVED,
     NOT_FOUND,
-    REMOVE_ERROR
+    REMOVE_ERROR,
+    REMOVED_UNDERFLOW
 } RemoveResult;
 
 BTHeader *create_btheader();

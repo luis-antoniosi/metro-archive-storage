@@ -422,34 +422,75 @@ static BTPage *get_page_successor(FILE *binFile, int rightChildRRN, int *success
     return current;
 }
 
+static void clear_trailing_slots(BTPage *page)
+{
+    for (int i = page->keyCount; i < TREE_ORDER - 1; i++)
+        page->keys[i] = (BTKey){-1, -1};
+
+    for (int i = page->keyCount + 1; i < TREE_ORDER; i++)
+        page->subPages[i] = -1;
+}
+
 static void redistribute_left(FILE *binFile, BTPage *parent, int childIdx, int parentRRN, int childRRN)
 {
     int siblingRRN = parent->subPages[childIdx - 1];
     BTPage *sibling = read_page(binFile, siblingRRN);
     BTPage *child = read_page(binFile, childRRN);
 
-    if (!sibling || !child)
-        return;
+    // build working arrays: sibling + separator + child
+    int total = sibling->keyCount + 1 + child->keyCount;
+    BTKey workingKeys[TREE_ORDER * 2];
+    int workingChildren[TREE_ORDER * 2 + 1];
 
-    // shift everything right
-    for (int i = child->keyCount; i > 0; i--)
-        child->keys[i] = child->keys[i - 1];
-    for (int i = child->keyCount + 1; i > 0; i--)
-        child->subPages[i] = child->subPages[i - 1];
+    for (int i = 0; i < sibling->keyCount; i++)
+    {
+        workingKeys[i] = sibling->keys[i];
+        workingChildren[i] = sibling->subPages[i];
+    }
+    workingChildren[sibling->keyCount] = sibling->subPages[sibling->keyCount];
 
-    child->keys[0] = parent->keys[childIdx - 1];
-    child->subPages[0] = sibling->subPages[sibling->keyCount];
-    child->keyCount++;
+    workingKeys[sibling->keyCount] = parent->keys[childIdx - 1]; // separator
 
-    parent->keys[childIdx - 1] = sibling->keys[sibling->keyCount - 1];
+    for (int i = 0; i < child->keyCount; i++)
+    {
+        workingKeys[sibling->keyCount + 1 + i] = child->keys[i];
+        workingChildren[sibling->keyCount + 1 + i] = child->subPages[i];
+    }
+    workingChildren[total] = child->subPages[child->keyCount];
 
-    sibling->keys[sibling->keyCount - 1] = (BTKey){-1, -1};
-    sibling->subPages[sibling->keyCount] = -1;
-    sibling->keyCount--;
+    // promoted key index — left gets one more if uneven
+    int promoIdx = total / 2;
+
+    // left (sibling) gets keys[0..promoIdx-1]
+    sibling->keyCount = 0;
+    for (int i = 0; i < promoIdx; i++)
+    {
+        sibling->keys[i] = workingKeys[i];
+        sibling->subPages[i] = workingChildren[i];
+        sibling->keyCount++;
+    }
+    sibling->subPages[promoIdx] = workingChildren[promoIdx];
+
+    // promoted key goes to parent
+    parent->keys[childIdx - 1] = workingKeys[promoIdx];
+
+    // right (child) gets keys[promoIdx+1..total-1]
+    child->keyCount = 0;
+    child->subPages[0] = workingChildren[promoIdx + 1];
+    for (int i = promoIdx + 1; i < total; i++)
+    {
+        child->keys[child->keyCount] = workingKeys[i];
+        child->subPages[child->keyCount + 1] = workingChildren[i + 1];
+        child->keyCount++;
+    }
+
+    // clear remaining slots
+    clear_trailing_slots(sibling);
+    clear_trailing_slots(child);
 
     write_page(binFile, parent, parentRRN);
-    write_page(binFile, child, childRRN);
     write_page(binFile, sibling, siblingRRN);
+    write_page(binFile, child, childRRN);
 
     free(sibling);
     free(child);
@@ -461,24 +502,56 @@ static void redistribute_right(FILE *binFile, BTPage *parent, int childIdx, int 
     BTPage *sibling = read_page(binFile, siblingRRN);
     BTPage *child = read_page(binFile, childRRN);
 
-    if (!sibling || !child)
-        return;
+    // build working arrays with all keys: child + separator + sibling
+    int total = child->keyCount + 1 + sibling->keyCount;
+    BTKey workingKeys[TREE_ORDER * 2];
+    int workingChildren[TREE_ORDER * 2 + 1];
 
-    child->keys[child->keyCount] = parent->keys[childIdx];
-    child->subPages[child->keyCount + 1] = sibling->subPages[0];
-    child->keyCount++;
+    for (int i = 0; i < child->keyCount; i++)
+    {
+        workingKeys[i] = child->keys[i];
+        workingChildren[i] = child->subPages[i];
+    }
+    workingChildren[child->keyCount] = child->subPages[child->keyCount];
 
-    parent->keys[childIdx] = sibling->keys[0];
+    workingKeys[child->keyCount] = parent->keys[childIdx];       // separator
+    workingChildren[child->keyCount + 1] = sibling->subPages[0]; // not used for leaves but needed
 
-    // shift everything left
-    for (int i = 0; i < sibling->keyCount - 1; i++)
-        sibling->keys[i] = sibling->keys[i + 1];
     for (int i = 0; i < sibling->keyCount; i++)
-        sibling->subPages[i] = sibling->subPages[i + 1];
+    {
+        workingKeys[child->keyCount + 1 + i] = sibling->keys[i];
+        workingChildren[child->keyCount + 2 + i] = sibling->subPages[i + 1];
+    }
 
-    sibling->keys[sibling->keyCount - 1] = (BTKey){-1, -1};
-    sibling->subPages[sibling->keyCount] = -1;
-    sibling->keyCount--;
+    // find promoted key index (most uniform distribution, left gets one more if uneven)
+    int promoIdx = total / 2;
+
+    // left node gets keys[0..promoIdx-1]
+    child->keyCount = 0;
+    for (int i = 0; i < promoIdx; i++)
+    {
+        child->keys[i] = workingKeys[i];
+        child->subPages[i] = workingChildren[i];
+        child->keyCount++;
+    }
+    child->subPages[promoIdx] = workingChildren[promoIdx];
+
+    // promoted key goes to parent
+    parent->keys[childIdx] = workingKeys[promoIdx];
+
+    // right node gets keys[promoIdx+1..total-1]
+    sibling->keyCount = 0;
+    sibling->subPages[0] = workingChildren[promoIdx + 1];
+    for (int i = promoIdx + 1; i < total; i++)
+    {
+        sibling->keys[sibling->keyCount] = workingKeys[i];
+        sibling->subPages[sibling->keyCount + 1] = workingChildren[i + 1];
+        sibling->keyCount++;
+    }
+
+    // clear remaining slots
+    clear_trailing_slots(child);
+    clear_trailing_slots(sibling);
 
     write_page(binFile, parent, parentRRN);
     write_page(binFile, child, childRRN);
@@ -486,15 +559,6 @@ static void redistribute_right(FILE *binFile, BTPage *parent, int childIdx, int 
 
     free(sibling);
     free(child);
-}
-
-static void deallocate_key(BTPage *page, int idx)
-{
-    for (int i = idx; i < page->keyCount - 1; i++)
-        page->keys[i] = page->keys[i + 1];
-
-    page->keys[page->keyCount - 1] = (BTKey){-1, -1};
-    page->keyCount--;
 }
 
 static void deallocate_page(FILE *binFile, BTHeader *header, int rrn)
@@ -530,35 +594,26 @@ static void merge_children(FILE *binFile, BTHeader *header, BTPage *parent, int 
     sibling->subPages[sibling->keyCount + 1] = child->subPages[0];
     sibling->keyCount++;
 
-    int offset = sibling->keyCount;
-
+    // copy child keys into sibling
     for (int i = 0; i < child->keyCount; i++)
-        sibling->keys[offset + i] = child->keys[i];
+    {
+        sibling->keys[sibling->keyCount] = child->keys[i];
+        sibling->subPages[sibling->keyCount + 1] = child->subPages[i + 1];
+        sibling->keyCount++;
+    }
 
-    for (int i = 1; i <= child->keyCount; i++)
-        sibling->subPages[offset + i] = child->subPages[i];
-
-    sibling->keyCount += child->keyCount;
-
+    // remove separator from parent
     for (int i = childIdx - 1; i < parent->keyCount - 1; i++)
+    {
         parent->keys[i] = parent->keys[i + 1];
-    for (int i = childIdx; i < parent->keyCount; i++)
-        parent->subPages[i] = parent->subPages[i + 1];
-
-    parent->keys[parent->keyCount - 1] = (BTKey){-1, -1};
-    parent->subPages[parent->keyCount] = -1;
+        parent->subPages[i + 1] = parent->subPages[i + 2];
+    }
     parent->keyCount--;
 
-    if (parent->keyCount == 0 && parent->nodeType == ROOT)
-    {
-        parent->removed = '1';
-        parent->next = header->top;
-        header->top = parentRRN;
-        header->numNodes--;
+    parent->subPages[parent->keyCount + 1] = -1;
 
-        sibling->nodeType = ROOT;
-        header->rootNode = siblingRRN;
-    }
+    clear_trailing_slots(sibling);
+    clear_trailing_slots(parent);
 
     write_page(binFile, sibling, siblingRRN);
     write_page(binFile, parent, parentRRN);
@@ -569,112 +624,140 @@ static void merge_children(FILE *binFile, BTHeader *header, BTPage *parent, int 
     free(child);
 }
 
+static int has_spare_keys(FILE *binFile, int rrn)
+{
+    BTPage *page = read_page(binFile, rrn);
+    int result = page->keyCount > MIN_OCCUPANCY;
+    free(page);
+    return result;
+}
+
+static RemoveResult handle_underflow(FILE *binFile, BTHeader *header, BTPage *parent, int childIdx, int childRRN, int parentRRN)
+{
+    if (childIdx < parent->keyCount && has_spare_keys(binFile, parent->subPages[childIdx + 1]))
+    {
+        redistribute_right(binFile, parent, childIdx, parentRRN, childRRN);
+        return REMOVED;
+    }
+
+    if (childIdx > 0 && has_spare_keys(binFile, parent->subPages[childIdx - 1]))
+    {
+        redistribute_left(binFile, parent, childIdx, parentRRN, childRRN);
+        return REMOVED;
+    }
+
+    if (childIdx > 0)
+        merge_children(binFile, header, parent, childIdx, parentRRN, childRRN);
+    else
+        merge_children(binFile, header, parent, childIdx + 1, parentRRN, parent->subPages[childIdx + 1]);
+
+    return (parent->keyCount < MIN_OCCUPANCY) ? REMOVED_UNDERFLOW : REMOVED;
+}
+
 static RemoveResult remove_loop(FILE *binFile, BTHeader *header, int currentRRN, int searchKey)
 {
-    if (currentRRN == -1)
-        return NOT_FOUND;
-
     BTPage *page = read_page(binFile, currentRRN);
     if (!page)
         return REMOVE_ERROR;
 
     int pos = binary_search(page, searchKey);
 
-    // case 1 : key in the current page
-    if (pos < page->keyCount && page->keys[pos].searchKey == searchKey)
+    // key found in non-leaf: swap with successor then remove it
+    if (pos >= 0 && page->nodeType != LEAF)
     {
-        // if its a leaf, just remove it
-        if (page->nodeType == LEAF)
+        int successorRRN;
+        BTPage *successor = get_page_successor(binFile, page->subPages[pos + 1], &successorRRN);
+        int successorKey = successor->keys[0].searchKey;
+        page->keys[pos] = successor->keys[0];
+        free(successor);
+        write_page(binFile, page, currentRRN);
+
+        int childRRN = page->subPages[pos + 1];
+        RemoveResult result = remove_loop(binFile, header, childRRN, successorKey);
+
+        if (result == REMOVED_UNDERFLOW)
         {
-            deallocate_key(page, pos);
-            write_page(binFile, page, currentRRN);
             free(page);
-            return REMOVED;
+            page = read_page(binFile, currentRRN);
+            result = handle_underflow(binFile, header, page, pos + 1, childRRN, currentRRN);
         }
-        else
-        {
-            // not a leaf, exchange with successor
-            int successorRRN = -1;
-            BTPage *successor = get_page_successor(binFile, page->subPages[pos + 1], &successorRRN); // ?
-            if (!successor)
-            {
-                free(page);
-                return REMOVE_ERROR;
-            }
 
-            // overwrite the key
-            page->keys[pos] = successor->keys[0];
-            write_page(binFile, page, currentRRN);
-
-            searchKey = successor->keys[0].searchKey;
-            pos = pos + 1;
-
-            free(successor);
-        }
+        free(page);
+        return result;
     }
-    // case 2: key not in the current page
+
+    // key found in leaf: remove directly
+    if (pos >= 0)
+    {
+        for (int i = pos; i < page->keyCount - 1; i++)
+            page->keys[i] = page->keys[i + 1];
+        page->keys[page->keyCount - 1] = (BTKey){-1, -1};
+        page->keyCount--;
+
+        clear_trailing_slots(page);
+
+        write_page(binFile, page, currentRRN);
+        RemoveResult result = (page->keyCount < MIN_OCCUPANCY) ? REMOVED_UNDERFLOW : REMOVED;
+        free(page);
+        return result;
+    }
+
+    // key not in this page: recurse into child
+    int childIdx = -pos - 1;
+
     if (page->nodeType == LEAF)
     {
         free(page);
         return NOT_FOUND;
     }
 
-    int childRRN = page->subPages[pos]; // ?
-    BTPage *childPage = read_page(binFile, childRRN);
-    if (!childPage)
+    int childRRN = page->subPages[childIdx];
+    RemoveResult result = remove_loop(binFile, header, childRRN, searchKey);
+
+    if (result == REMOVED_UNDERFLOW)
     {
         free(page);
-        return REMOVE_ERROR;
+        page = read_page(binFile, currentRRN);
+        result = handle_underflow(binFile, header, page, childIdx, childRRN, currentRRN);
     }
 
-    // checking for underflow beforehand
-    if (childPage->keyCount == MIN_OCCUPANCY)
-    {
-        int leftSiblingRRN = (pos > 0) ? page->subPages[pos - 1] : -1;
-        int rightSiblingRRN = (pos < page->keyCount) ? page->subPages[pos + 1] : -1;
-
-        BTPage *leftSiblingPage = (leftSiblingRRN != -1) ? read_page(binFile, leftSiblingRRN) : NULL;
-        BTPage *rightSiblingPage = (rightSiblingRRN != -1) ? read_page(binFile, rightSiblingRRN) : NULL;
-
-        if (leftSiblingPage && leftSiblingPage->keyCount > MIN_OCCUPANCY)
-            redistribute_left(binFile, page, pos, currentRRN, childRRN);
-        else if (rightSiblingPage && rightSiblingPage->keyCount > MIN_OCCUPANCY)
-            redistribute_right(binFile, page, pos, currentRRN, childRRN);
-        else
-        {
-            if (leftSiblingRRN != -1)
-            {
-                merge_children(binFile, header, page, pos, currentRRN, childRRN);
-                childRRN = leftSiblingRRN;
-            }
-            else
-                merge_children(binFile, header, page, pos + 1, currentRRN, page->subPages[pos + 1]);
-        }
-
-        if (leftSiblingPage)
-            free(leftSiblingPage);
-        if (rightSiblingPage)
-            free(rightSiblingPage);
-    }
-
-    free(childPage);
     free(page);
-
-    return remove_loop(binFile, header, childRRN, searchKey);
+    return result;
 }
 
-Status remove_key(FILE *binFile, BTHeader *header, int removedKey)
+Status remove_key(FILE *binFile, BTHeader *header, int searchKey)
 {
-    if (!binFile || !header)
+    if (!binFile || !header || header->rootNode == -1)
         return FAILURE;
 
-    if (header->rootNode == -1)
-        return FAILURE;
-
-    RemoveResult result = remove_loop(binFile, header, header->rootNode, removedKey);
+    RemoveResult result = remove_loop(binFile, header, header->rootNode, searchKey);
 
     if (result == NOT_FOUND || result == REMOVE_ERROR)
         return FAILURE;
+
+    // case 6: root lost its last key; shrink tree height
+    if (result == REMOVED_UNDERFLOW)
+    {
+        BTPage *root = read_page(binFile, header->rootNode);
+        if (root->keyCount == 0)
+        {
+            int oldRoot = header->rootNode;
+            header->rootNode = root->subPages[0];
+
+            if (header->rootNode != -1)
+            {
+                BTPage *newRoot = read_page(binFile, header->rootNode);
+                newRoot->nodeType = ROOT;
+                write_page(binFile, newRoot, header->rootNode);
+                free(newRoot);
+            }
+
+            free(root);
+            deallocate_page(binFile, header, oldRoot);
+        }
+        else
+            free(root);
+    }
 
     return SUCCESS;
 }
