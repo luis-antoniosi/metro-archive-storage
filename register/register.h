@@ -53,7 +53,9 @@ typedef struct StationPair
     int nextStationCode;
 } StationPair;
 
-//
+//-----------------------------------------------//
+//                    FUNCTIONS                  //
+//-----------------------------------------------//
 
 /**
  * @brief Parses a delimited string buffer (csv) and populates a register

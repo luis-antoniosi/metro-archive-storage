@@ -89,7 +89,7 @@ Status write_page(FILE *binFile, BTPage *page, int rrn)
         return FAILURE;
 
     if (rrn != -1)
-        fseek(binFile, HEADER_SIZE + (rrn * PAGE_SIZE), SEEK_SET);
+        fseek(binFile, BT_HEADER_SIZE + (rrn * BT_PAGE_SIZE), SEEK_SET);
 
     fwrite(&page->removed, sizeof(char), 1, binFile);
     fwrite(&page->next, sizeof(int), 1, binFile);
@@ -116,7 +116,7 @@ BTPage *read_page(FILE *binFile, int rrn)
     if (!binFile || !page)
         return NULL;
 
-    fseek(binFile, HEADER_SIZE + (rrn * PAGE_SIZE), SEEK_SET);
+    fseek(binFile, BT_HEADER_SIZE + (rrn * BT_PAGE_SIZE), SEEK_SET);
 
     if (fread(&page->removed, sizeof(char), 1, binFile) != 1 ||
         fread(&page->next, sizeof(int), 1, binFile) != 1 ||
@@ -327,7 +327,6 @@ Status insert_key(FILE *binFile, BTHeader *header, BTKey key)
         header->rootNode = allocate_page(binFile, header);
 
         write_page(binFile, root, header->rootNode);
-        // still need to actually update this header
 
         free(root);
         return SUCCESS;

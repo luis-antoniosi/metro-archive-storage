@@ -20,7 +20,7 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
 /**
  * @brief Reads the filters typed by the user
  *
- * @param pairIterations Pointer to an int variable the number of filters is assigned to
+ * @param[out] pairIterations Pointer to an int variable the number of filters is assigned to
  *
  * @return SearchField* Allocated array containing the filters in a struct or NULL in case of failure.
  *  The caller must free the dynamically allocated array.

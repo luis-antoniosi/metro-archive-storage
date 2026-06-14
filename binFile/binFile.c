@@ -18,11 +18,10 @@ Status write_bin_file(FILE *inputFile, FILE *outputFile)
     change_status(outputFile, STATUS_INCONSISTENT);
 
     Header *fileHeader = create_header();
-    char buffer[BUF_SIZE];
+    char buffer[BUF_SIZE];  // BUF_SIZE from types.h
     int numData = 0;
 
-    // checks if header is not null, if it's not, write it to the bin file, and if that works, get the path of the .csv
-    // if any of those fail, it frees the header and returns.
+    // essentially this if does three different things, but i didnt want to write 3 different ifs
     if (!fileHeader || write_header(outputFile, fileHeader) || !fgets(buffer, BUF_SIZE, inputFile))
     {
         free(fileHeader);
@@ -46,14 +45,12 @@ Status write_bin_file(FILE *inputFile, FILE *outputFile)
 
     fileHeader->nextRRN = numData;
 
-    // this function writes the header after getting the station count
-    if (update_station_counts(outputFile, fileHeader) == FAILURE)
-    {
-        free(fileHeader);
-        return FAILURE;
-    }
-
+    write_header(outputFile, fileHeader);
     free(fileHeader);
+
+    // could pass the fileHeader to it, but I prefered to make the function read the header by itself
+    if (update_header_count(outputFile) == FAILURE)
+        return FAILURE;
 
     change_status(outputFile, STATUS_CONSISTENT);
 
@@ -228,6 +225,7 @@ Status insert_data(FILE *binFile, int iterations)
     return SUCCESS;
 }
 
+// TODO: Combine this with select too?
 Status update_data_where(FILE *binFile, int iterations)
 {
     if (!binFile)
@@ -281,6 +279,8 @@ Status update_data_where(FILE *binFile, int iterations)
     return SUCCESS;
 }
 
+// part 2; index related
+
 Status create_index(FILE *registerFile, FILE *indexFile)
 {
     if (!registerFile || !indexFile)
@@ -312,7 +312,7 @@ Status create_index(FILE *registerFile, FILE *indexFile)
     write_btheader(indexFile, btHeader);
     free(btHeader);
 
-    change_status(indexFile, STATUS_CONSISTENT);
+    change_status(indexFile, STATUS_CONSISTENT); // TODO: change this and other functions to another .c
 
     return SUCCESS;
 }
@@ -408,8 +408,6 @@ Status insert_index(FILE *registerFile, FILE *indexFile, int iterations)
 
                 insert_register(registerFile, currentReg, dataHeader);
                 insert_key(indexFile, btHeader, (BTKey){currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)});
-
-                write_btheader(indexFile, btHeader);
             }
 
             destroy_register(&currentReg);
@@ -484,7 +482,7 @@ Status delete_index(FILE *registerFile, FILE *indexFile, int iterations)
         {
             Register *reg = NULL;
             while ((reg = check_register_field_search(registerFile, filters, pairIterations)))
-            {   
+            {
                 remove_register(registerFile);
                 fseek(registerFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
 
@@ -512,6 +510,7 @@ Status delete_index(FILE *registerFile, FILE *indexFile, int iterations)
     return SUCCESS;
 }
 
+// didn't really make our own, just copied and changed the variables' names
 void binary_on_screen(char *fileName)
 {
     FILE *binFile = NULL;

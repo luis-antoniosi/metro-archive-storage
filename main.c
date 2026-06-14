@@ -204,9 +204,8 @@ int main()
             if (bin && index)
             {
                 create_index(bin, index);
-                fclose(bin);
 
-                change_status(index, STATUS_CONSISTENT); // change this and other functions to another .c
+                fclose(bin);
                 fclose(index);
                 bin = NULL;
 

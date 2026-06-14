@@ -88,6 +88,7 @@ Status insert_register(FILE *binFile, Register *data, Header *header)
         if (fread(&nextPosReplacement, sizeof(int), 1, binFile) != 1)
             return FAILURE;
 
+        // TODO: what if next == top
         header->top = nextPosReplacement;
     }
     else
@@ -141,7 +142,7 @@ void remove_register(FILE *binFile)
 
 // essentially the same as check_match from search.c, but applies the field instead
 /**
- * @brief Updates a field of a Register
+ * @brief Updates a field of a Register to a SearchField's value
  *
  * @param data Pointer to the register to be updated
  * @param field Populated SearchField struct with the field's name and the new value to be assigned
