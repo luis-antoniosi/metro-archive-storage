@@ -1,5 +1,5 @@
-#ifndef SEARCH_H
-#define SEARCH_H
+#ifndef REGISTER_SEARCH_H
+#define REGISTER_SEARCH_H
 
 #include <stdio.h>
 #include "register.h"

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "header/header.h" // just for the struct type
+#include "binFile/dataFile.h" // just for the DataHeader struct type
 #include "modify.h"
 #include "parseUtils.h" // check_quotes and check_for_null
 
@@ -73,34 +73,31 @@ Register *input_register()
 
 // Insertion
 
-// TODO: change some variable names; nextPosReplacement; RRN insertion?
-Status insert_register(FILE *binFile, Register *data, Header *header)
+Status insert_register(FILE *binFile, Register *data, DataHeader *header)
 {
     if (!binFile || !data || !header)
         return FAILURE;
 
-    int nextPos = 0, nextPosReplacement = 0;
+    int insertOffset = 0;
 
     if (header->top != -1)
     {
-        nextPos = header->top * REGISTER_SIZE;
-        fseek(binFile, nextPos + HEADER_SIZE + sizeof(char), SEEK_SET); // skipping "removed"
-        if (fread(&nextPosReplacement, sizeof(int), 1, binFile) != 1)
+        insertOffset = header->top * REGISTER_SIZE;
+        int nextTop = 0;
+
+        fseek(binFile, insertOffset + HEADER_SIZE + sizeof(char), SEEK_SET); // skipping "removed"
+        if (fread(&nextTop, sizeof(int), 1, binFile) != 1)
             return FAILURE;
 
-        // TODO: what if next == top
-        header->top = nextPosReplacement;
+        header->top = nextTop;
     }
     else
     {
-        nextPos = header->nextRRN * REGISTER_SIZE;
-        nextPosReplacement = header->nextRRN + 1;
-
-        header->nextRRN = nextPosReplacement;
+        insertOffset = header->nextRRN * REGISTER_SIZE;
+        header->nextRRN++;
     }
 
-    fseek(binFile, nextPos + HEADER_SIZE, SEEK_SET);
-
+    fseek(binFile, insertOffset + HEADER_SIZE, SEEK_SET);
     write_register(binFile, data);
 
     return SUCCESS;

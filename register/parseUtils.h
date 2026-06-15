@@ -1,5 +1,5 @@
-#ifndef PARSE_UTILS_H
-#define PARSE_UTILS_H
+#ifndef REGISTER_PARSE_UTILS_H
+#define REGISTER_PARSE_UTILS_H
 
 /**
  * @brief Optimized strtok to deal with consecutive delimiter characters

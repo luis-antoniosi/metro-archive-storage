@@ -1,8 +1,9 @@
-#ifndef MODIFY_H
-#define MODIFY_H
+#ifndef REGISTER_MODIFY_H
+#define REGISTER_MODIFY_H
 
 #include "types.h"
 #include "register.h"
+#include "binFile/dataFile.h"
 
 /**
  * @brief Reads a line from stdin and parses it into a register; space delimited and has quotes
@@ -20,7 +21,7 @@ Register *input_register();
  * 
  * @return SUCCESS or FAILURE
  */
-Status insert_register(FILE *binFile, Register *data, Header *header);
+Status insert_register(FILE *binFile, Register *data, DataHeader *header);
 
 /**
  * @brief Removes a register by setting the removed flag and doing the appropriate changes

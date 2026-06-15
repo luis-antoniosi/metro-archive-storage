@@ -3,9 +3,9 @@
 #include <locale.h>
 #include <string.h>
 #include "types.h"
-#include "header/header.h"
 #include "register/register.h"
-#include "binFile/binFile.h"
+#include "binFile/dataFile.h"
+#include "binFile/indexFile.h"
 
 #define INPUT_SIZE 64
 

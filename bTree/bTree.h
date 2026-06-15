@@ -19,33 +19,33 @@
 //------------------------------------------------//
 
 /**
- * @struct BTHeader
+ * @struct IndexHeader
  * @brief Represents the header of an index file, which uses a b-tree.
  */
-typedef struct BTHeader {
+typedef struct IndexHeader {
     char status;
     int rootNode;   // -1 if the tree is empty
     int top;        // -1 if there were no logically removed registers
     int nextRRN;    //  0 if the tree is empty
     int numNodes;   //  0 if the tree is empty
-} BTHeader;
+} IndexHeader;
 
 // both fields should be -1 if the page hasn't been filled
 /**
- * @struct Represents the keys a b-tree's page stores.
- * @brief Both fields should be -1 if the page hasn't been filled. 
+ * @struct IndexKey 
+ * @brief Represents the keys a b-tree's page stores. Both fields should be -1 if the page hasn't been filled. 
  */
-typedef struct BTKey
+typedef struct IndexKey
 {
     int searchKey;
     int byteOffset;
-} BTKey;
+} IndexKey;
 
 /**
- * @struct BTPage
+ * @struct IndexPage
  * @brief Represents the page of a b-tree.
  */
-typedef struct BTPage
+typedef struct IndexPage
 {
     char removed;
     int next;
@@ -53,9 +53,9 @@ typedef struct BTPage
     int nodeType; // -1 is for leaves, 0 for root and 1 for intermediary nodes; see the NodeType enum below
     int keyCount;
 
-    BTKey keys[TREE_ORDER - 1];
+    IndexKey keys[TREE_ORDER - 1];
     int subPages[TREE_ORDER];   // -1 for null "pointers"
-} BTPage;
+} IndexPage;
 
 //---------------------------------//
 //             ENUMS               //
@@ -63,7 +63,7 @@ typedef struct BTPage
 
 /**
  * @enum Status
- * @brief Indicates the node type of a BTPage
+ * @brief Indicates the node type of a IndexPage
  */
 typedef enum NodeType {
     LEAF = -1,
@@ -97,19 +97,15 @@ typedef enum RemoveResult {
 //-----------------------------------------------//
 
 // TODO: Comments for these functions
-BTHeader *create_btheader();
-Status write_btheader(FILE *binFile, BTHeader *header);
-BTHeader *read_btheader(FILE *binFile);
+IndexHeader *create_index_header();
+Status write_index_header(FILE *indexFile, IndexHeader *header);
+IndexHeader *read_index_header(FILE *indexFile);
 
-BTPage *create_page();
-Status write_page(FILE *binFile, BTPage *page, int rrn);
-BTPage *read_page(FILE *binFile, int rrn);
+IndexPage *create_index_page();
+Status write_index_page(FILE *indexFile, IndexPage *page, int rrn);
+IndexPage *read_index_page(FILE *indexFile, int rrn);
 
-int search_key(FILE *binFile, BTHeader *header, int searchKey);
-
-Status insert_key(FILE *binFile, BTHeader *header, BTKey key);
-BTKey split_page(BTPage *page, BTPage *newPage, BTKey insertKey, int insertRRN);
-
-Status remove_key(FILE *binFile, BTHeader *header, int removedKey);
+int binary_index_search(IndexPage *page, int searchkey);
+int search_index_key(FILE *indexFile, IndexHeader *header, int searchKey);
 
 #endif

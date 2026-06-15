@@ -3,7 +3,7 @@
 
 //-----------------------------------------------//
 //                    CONSTANTS                  //
-//----------------------------------------------//
+//-----------------------------------------------//
 
 #define BUF_SIZE        256 // set buffer size used for strings
 #define EXPECTED_SIZE   300 // used in header.c, malloc of seenStations and seenPairs
@@ -17,7 +17,7 @@
 #define STATUS_CONSISTENT '1'
 #define TRASH '$'
 
-//----------------------------------//
+//---------------------------------//
 //             ENUMS               //
 //---------------------------------//
 
