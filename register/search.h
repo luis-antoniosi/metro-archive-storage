@@ -12,7 +12,7 @@
  * @param binFile Pointer to the binary file
  * @param filters Array containing the search field filters
  * @param pairIterations Number of filters in the array
- * @param[out] currentRRN RRN of the returned register
+ * @param[out] currentRRN RRN of the returned register. Can be NULL if not needed.
  *
  * @return Register* of a register that meets all search filters, NULL otherwise
  */

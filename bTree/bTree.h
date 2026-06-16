@@ -3,32 +3,23 @@
 
 #include <stdio.h>
 #include "types.h"
+#include "binFile/indexFile.h"  // for IndexHeader type
 
 //-----------------------------------------------//
 //                    CONSTANTS                  //
 //----------------------------------------------//
 
-#define TREE_ORDER          4
-#define BT_HEADER_SIZE      17
-#define BT_PAGE_SIZE        53
+#define TREE_ORDER              4
+#define INDEX_HEADER_SIZE      17
+#define INDEX_PAGE_SIZE        53
 
-#define MIN_OCCUPANCY       (((TREE_ORDER + 2 - 1) / 2) - 1)
+#define MIN_OCCUPANCY           (((TREE_ORDER + 2 - 1) / 2) - 1)
 
 //------------------------------------------------//
 //                    STRUCTURES                  //
 //------------------------------------------------//
 
-/**
- * @struct IndexHeader
- * @brief Represents the header of an index file, which uses a b-tree.
- */
-typedef struct IndexHeader {
-    char status;
-    int rootNode;   // -1 if the tree is empty
-    int top;        // -1 if there were no logically removed registers
-    int nextRRN;    //  0 if the tree is empty
-    int numNodes;   //  0 if the tree is empty
-} IndexHeader;
+// Header is in binFile/indexFile.h
 
 // both fields should be -1 if the page hasn't been filled
 /**
@@ -71,41 +62,59 @@ typedef enum NodeType {
     INTERMEDIARY = 1
 } NodeType;
 
-/**
- * @enum InsertResult
- * @brief Different cases the insert_loop function can return
- */
-typedef enum InsertResult {
-    PROMOTION,
-    NO_PROMOTION,
-    ERROR
-} InsertResult;
-
-/**
- * @enum RemoveResult
- * @brief Different cases the remove_loop and handle_underflow functions can return
- */
-typedef enum RemoveResult {
-    REMOVED,
-    NOT_FOUND,
-    REMOVE_ERROR,
-    REMOVED_UNDERFLOW
-} RemoveResult;
-
 //-----------------------------------------------//
 //                    FUNCTIONS                  //
 //-----------------------------------------------//
 
-// TODO: Comments for these functions
-IndexHeader *create_index_header();
-Status write_index_header(FILE *indexFile, IndexHeader *header);
-IndexHeader *read_index_header(FILE *indexFile);
 
+// IndexPage functions
+
+/**
+ * @brief Creates an IndexPage, returns it with default values.
+ * 
+ * @return Pointer to the created IndexPage
+ */
 IndexPage *create_index_page();
+
+/**
+ * @brief Writes an IndexPage in the indexFile, using the RRN as its position. If the RRN is -1, just writes it in the current position.
+ * 
+ * @param indexFile File where the index will be written into
+ * @param page IndexPage that'll be written
+ * @param rrn  Position of where the page will be written
+ * @return SUCCESS or FAILURE 
+ */
 Status write_index_page(FILE *indexFile, IndexPage *page, int rrn);
+
+/**
+ * @brief Reads an IndexPage at the specified RRN.
+ * 
+ * @param indexFile File containing all indices
+ * @param rrn Position of the page that'll be read
+ * @return Pointer to the read IndexPage
+ */
 IndexPage *read_index_page(FILE *indexFile, int rrn);
 
+// Search functions
+
+/**
+ * @brief Uses a binary_search algorithm to return the array index of a searchKey in a page.
+ * 
+ * @param page Page that'll be searched
+ * @param searchkey Value to search
+ * @return Index of the key in the keys array of the page. 
+ * Negative number if not found, which also means it's the subPage's index of where the key "would be", if it existed (or if it simply was not in the current page).
+ */
 int binary_index_search(IndexPage *page, int searchkey);
+
+/**
+ * @brief Searches for a searchKey in the indexFile
+ * 
+ * @param indexFile File with all the indices
+ * @param header Header of the indexFile
+ * @param searchKey Value to search
+ * @return Byte offset of the searchedKey. -1 if not found.
+ */
 int search_index_key(FILE *indexFile, IndexHeader *header, int searchKey);
 
 #endif

@@ -137,16 +137,17 @@ Register *read_register(FILE *binFile)
     if (!currentRegister)
         return NULL;
 
-    //reads just the removed status
+    // reads just the removed status
     if (fread(&currentRegister->removed, sizeof(char), 1, binFile) != 1)
     {
         free(currentRegister);
         return NULL;
     }
+
     bytesRead += sizeof(char);
 
-    //if register is flaged as removed, skip to the next register (we return it)
-    if(currentRegister->removed == '1'){
+    // return the register as is if it is removed, seek to the next one. all functionalities check if it is removed beforehand.
+    if(currentRegister->removed == RECORD_REMOVED){
         fseek(binFile, REGISTER_SIZE - bytesRead, SEEK_CUR);
         return currentRegister;
     }

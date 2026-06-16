@@ -39,13 +39,15 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
 {
     Register *currentRegister = NULL;
 
-    while ((currentRegister = read_register(binFile))) 
+    while ((currentRegister = read_register(binFile)))
     {
         // this loop skips any removed registers
-        if (currentRegister->removed == '1')
+        if (currentRegister->removed == RECORD_REMOVED)
         {
             destroy_register(&currentRegister);
-            (*currentRRN)++;
+            if (currentRRN)
+                (*currentRRN)++;
+
             continue;
         }
 
@@ -63,7 +65,8 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
             return currentRegister;
 
         destroy_register(&currentRegister);
-        (*currentRRN)++;
+        if (currentRRN)
+            (*currentRRN)++;
     }
 
     return NULL;
@@ -96,7 +99,7 @@ SearchField *get_all_search_fields(int *pairIterations)
         if (token)
             strcpy(filters[j].value, token);
 
-        if (strcmp(filters[j].value, "NULO") == 0) 
+        if (strcmp(filters[j].value, "NULO") == 0)
             strcpy(filters[j].value, "-1");
     }
 

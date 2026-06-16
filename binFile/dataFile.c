@@ -93,7 +93,7 @@ Status update_data_header_count(FILE *dataFile)
 
     while ((currentRegister = read_register(dataFile)))
     {
-        if (currentRegister->removed == '1')
+        if (currentRegister->removed == RECORD_REMOVED)
         {
             destroy_register(&currentRegister);
             continue;
@@ -162,7 +162,7 @@ Status update_data_header_count(FILE *dataFile)
 
 // File Functions
 
-Status write_bin_file(FILE *inputFile, FILE *outputFile)
+Status write_data_file(FILE *inputFile, FILE *outputFile)
 {
     if (!inputFile || !outputFile)
         return FAILURE;
@@ -186,7 +186,7 @@ Status write_bin_file(FILE *inputFile, FILE *outputFile)
         if (!newRegister)
             continue;
 
-        newRegister->removed = '0';
+        newRegister->removed = RECORD_ACTIVE;
         newRegister->next = -1;
 
         write_register(outputFile, newRegister);
@@ -221,7 +221,7 @@ Status print_all_data(FILE *dataFile)
     int foundRegister = 0;
     while ((currentReg = read_register(dataFile)))
     {
-        if (currentReg->removed != '1')
+        if (currentReg->removed != RECORD_REMOVED)
         {
             print_register(currentReg);
             foundRegister = 1;
@@ -237,6 +237,13 @@ Status print_all_data(FILE *dataFile)
 }
 
 // Helper function used in print_all_data_where, delete_all_data_where and update_data_where
+/**
+ * @brief Filters registers' RRNs based on SearchField filters doing a linear search
+ * 
+ * @param dataFile File with all the registers
+ * @param[out] numFound Number of found registers that match the filters 
+ * @return Pointer to an array of size numFound containing all RRNs. User must deallocate it.
+ */
 static int *filter_data_rrn(FILE *dataFile, int *numFound)
 {
     if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
@@ -261,7 +268,9 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
     }
 
     int *stationRRNList = NULL;
-    int capacity = 4;
+    int capacity = 4;   // capacity is doubled and array is reallocated when necessary
+    
+    // Will have a size of 1 if the search is by stationCode, since we need to break.
     if (searchByStationCode)
         stationRRNList = calloc(1, sizeof(int));
     else
@@ -276,6 +285,8 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
 
     Register *filteredRegister = NULL;
     int currentRRN = 0;
+
+    // get each register that matches the filter, save its RRN to the array.
     while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
     {
         if (*numFound >= capacity)
@@ -295,6 +306,7 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
             break;
     }
 
+    // if no matching registers were found, return NULL
     if ((*numFound) == 0)
     {
         free(filters);

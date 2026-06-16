@@ -43,5 +43,4 @@ void remove_register(FILE *binFile, int removedRRN);
  */
 Status update_register(FILE *binFile, Register *data, SearchField *filters, int iterations);
 
-
 #endif

@@ -5,17 +5,17 @@
 //                    CONSTANTS                  //
 //-----------------------------------------------//
 
-#define BUF_SIZE        256 // set buffer size used for strings
-#define EXPECTED_SIZE   300 // used in header.c, malloc of seenStations and seenPairs
+#define BUF_SIZE            256 // set buffer size used for strings
+#define EXPECTED_SIZE       300 // used in main.c, header.c, malloc of seenStations and seenPairs
 
-// fixed sizes defined by the project specifications
-#define HEADER_SIZE     17
-#define REGISTER_SIZE   80
-
-// file status and trash character
+// file status, removed status and trash character
 #define STATUS_INCONSISTENT '0'
-#define STATUS_CONSISTENT '1'
-#define TRASH '$'
+#define STATUS_CONSISTENT   '1'
+
+#define RECORD_ACTIVE       '0'
+#define RECORD_REMOVED      '1'
+
+#define TRASH               '$'
 
 //---------------------------------//
 //             ENUMS               //

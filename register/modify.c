@@ -21,7 +21,7 @@ Register *input_register()
         return NULL;
     }
 
-    currentRegister->removed = '0';
+    currentRegister->removed = RECORD_ACTIVE;
     currentRegister->next = -1;
 
     char *token = strtok(buff, " \n\r");

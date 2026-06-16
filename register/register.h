@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include "types.h" // for BUF_SIZE
 
+// Header is in binFile/dataFile.c
+
+#define REGISTER_SIZE 80
+
 /**
  * @struct Register
  * @brief Represents a station data record, mapping its logical fields.

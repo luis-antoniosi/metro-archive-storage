@@ -1,65 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "bTree.h"
-
-IndexHeader *create_index_header()
-{
-    IndexHeader *header = malloc(sizeof(IndexHeader));
-
-    if (!header)
-        return NULL;
-
-    header->status = '0';
-    header->rootNode = -1;
-    header->top = -1;
-    header->nextRRN = 0;
-    header->numNodes = 0;
-
-    return header;
-}
-
-Status write_index_header(FILE *indexFile, IndexHeader *header)
-{
-    if (!indexFile || !header)
-        return FAILURE;
-
-    if (fseek(indexFile, 0, SEEK_SET))
-        return FAILURE;
-
-    fwrite(&header->status, sizeof(char), 1, indexFile);
-    fwrite(&header->rootNode, sizeof(int), 1, indexFile);
-    fwrite(&header->top, sizeof(int), 1, indexFile);
-    fwrite(&header->nextRRN, sizeof(int), 1, indexFile);
-    fwrite(&header->numNodes, sizeof(int), 1, indexFile);
-
-    return SUCCESS;
-}
-
-IndexHeader *read_index_header(FILE *indexFile)
-{
-    if (!indexFile)
-        return NULL;
-
-    if (fseek(indexFile, 0, SEEK_SET))
-        return NULL;
-
-    IndexHeader *header = create_index_header();
-
-    if (fread(&header->status, sizeof(char), 1, indexFile) != 1 ||
-        fread(&header->rootNode, sizeof(int), 1, indexFile) != 1 ||
-        fread(&header->top, sizeof(int), 1, indexFile) != 1 ||
-        fread(&header->nextRRN, sizeof(int), 1, indexFile) != 1 ||
-        fread(&header->numNodes, sizeof(int), 1, indexFile) != 1)
-    {
-        printf("Unable to read BTree header.\n");
-        free(header);
-        return NULL;
-    }
-
-    return header;
-}
-
-//
+#include "binFile/indexFile.h" // for IndexHeader type
 
 IndexPage *create_index_page()
 {
@@ -68,7 +10,7 @@ IndexPage *create_index_page()
     if (!page)
         return NULL;
 
-    page->removed = '0';
+    page->removed = RECORD_ACTIVE;
     page->next = -1;
     page->nodeType = LEAF;
     page->keyCount = 1;
@@ -89,7 +31,7 @@ Status write_index_page(FILE *indexFile, IndexPage *page, int rrn)
         return FAILURE;
 
     if (rrn != -1)
-        fseek(indexFile, BT_HEADER_SIZE + (rrn * BT_PAGE_SIZE), SEEK_SET);
+        fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET);
 
     fwrite(&page->removed, sizeof(char), 1, indexFile);
     fwrite(&page->next, sizeof(int), 1, indexFile);
@@ -116,7 +58,7 @@ IndexPage *read_index_page(FILE *indexFile, int rrn)
     if (!indexFile || !page)
         return NULL;
 
-    fseek(indexFile, BT_HEADER_SIZE + (rrn * BT_PAGE_SIZE), SEEK_SET);
+    fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET);
 
     if (fread(&page->removed, sizeof(char), 1, indexFile) != 1 ||
         fread(&page->next, sizeof(int), 1, indexFile) != 1 ||
@@ -158,7 +100,7 @@ int binary_index_search(IndexPage *page, int searchKey)
 
     while (left <= right)
     {
-        int mid = left + (right - left) / 2;
+        int mid = left + (right - left) / 2; // preventing overflow
 
         if (page->keys[mid].searchKey == searchKey)
             return mid;
@@ -168,11 +110,21 @@ int binary_index_search(IndexPage *page, int searchKey)
             right = mid - 1;
     }
 
+    // left is the index where the key should be inserted. it is returned as a negative number to show that it was not found.
     return -left - 1;
 }
 
+/**
+ * @brief Recursively searches through the b-tree in indexFile to find the searchkey
+ * 
+ * @param indexFile Index file with all the indices
+ * @param currentRRN RRN of the page that's currently being searched.
+ * @param searchKey Key to be searched
+ * @return Byte offset of the found searchKey. -1 if not found.
+ */
 static int search_recursive(FILE *indexFile, int currentRRN, int searchKey)
 {
+    // If there are no more subpages, hits a base case
     if (currentRRN == -1)
         return -1;
 
@@ -180,8 +132,10 @@ static int search_recursive(FILE *indexFile, int currentRRN, int searchKey)
     if (!page)
         return -1;
 
+    // Checking if the searchkey is in the current page
     int result = binary_index_search(page, searchKey);
 
+    // If it is, return its byteOffset
     if (result >= 0)
     {
         int offset = page->keys[result].byteOffset;
@@ -189,12 +143,14 @@ static int search_recursive(FILE *indexFile, int currentRRN, int searchKey)
         return offset;
     }
 
+    // If it was not found and the current page is a LEAF, we hit another base case
     if (page->nodeType == LEAF)
     {
         free(page);
         return -1;
     }
 
+    // doing -result - 1 from binary_index_search gives us the subPage where the searchKey will be, if it exists 
     int childRRN = page->subPages[-result - 1];
     free(page);
 

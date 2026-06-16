@@ -1,20 +1,79 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string.h>             // for strcmp
 
 #include "indexFile.h"
-#include "dataFile.h"
+#include "dataFile.h"           // for write_data_header, read_data_header and update_data_header_count
 
-#include "register/register.h"
-#include "register/modify.h"
+#include "register/register.h"  // for read_register, destroy_register and print_register. Register and SearchField types.
+#include "register/modify.h"    // for input_register, insert_register and remove_register
 #include "register/search.h"
 
 #include "bTree/bTree.h"
 #include "bTree/modify.h"
 
-#include "utils/utils.h"
+#include "utils/utils.h"        // for change_status
 
-// part 2; index related
+// IndexHeader functions
+
+IndexHeader *create_index_header()
+{
+    IndexHeader *header = malloc(sizeof(IndexHeader));
+
+    if (!header)
+        return NULL;
+
+    header->status = '0';
+    header->rootNode = -1;
+    header->top = -1;
+    header->nextRRN = 0;
+    header->numNodes = 0;
+
+    return header;
+}
+
+Status write_index_header(FILE *indexFile, IndexHeader *header)
+{
+    if (!indexFile || !header)
+        return FAILURE;
+
+    if (fseek(indexFile, 0, SEEK_SET))
+        return FAILURE;
+
+    fwrite(&header->status, sizeof(char), 1, indexFile);
+    fwrite(&header->rootNode, sizeof(int), 1, indexFile);
+    fwrite(&header->top, sizeof(int), 1, indexFile);
+    fwrite(&header->nextRRN, sizeof(int), 1, indexFile);
+    fwrite(&header->numNodes, sizeof(int), 1, indexFile);
+
+    return SUCCESS;
+}
+
+IndexHeader *read_index_header(FILE *indexFile)
+{
+    if (!indexFile)
+        return NULL;
+
+    if (fseek(indexFile, 0, SEEK_SET))
+        return NULL;
+
+    IndexHeader *header = create_index_header();
+
+    if (fread(&header->status, sizeof(char), 1, indexFile) != 1 ||
+        fread(&header->rootNode, sizeof(int), 1, indexFile) != 1 ||
+        fread(&header->top, sizeof(int), 1, indexFile) != 1 ||
+        fread(&header->nextRRN, sizeof(int), 1, indexFile) != 1 ||
+        fread(&header->numNodes, sizeof(int), 1, indexFile) != 1)
+    {
+        printf("Unable to read indexFile header.\n");
+        free(header);
+        return NULL;
+    }
+
+    return header;
+}
+
+// File functions
 
 Status create_index(FILE *dataFile, FILE *indexFile)
 {
@@ -28,13 +87,13 @@ Status create_index(FILE *dataFile, FILE *indexFile)
         return FAILURE;
     }
 
-    Register *reg;
+    Register *reg = NULL;
     int rrn = 0;
 
     fseek(dataFile, HEADER_SIZE, SEEK_SET);
     while ((reg = read_register(dataFile)))
     {
-        if (reg->removed != '1')
+        if (reg->removed != RECORD_REMOVED)
         {
             IndexKey key = {reg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)};
             insert_index_key(indexFile, header, key);
@@ -57,7 +116,17 @@ Status create_index(FILE *dataFile, FILE *indexFile)
     return SUCCESS;
 }
 
-static int *filter_index_keys(FILE *dataFile, FILE *indexFile, IndexHeader *header, int *numFound)
+// Helper function used in search_with_index and delete_index
+/**
+ * @brief Filters registers' RRNs based on SearchField filters using an indexFile.
+ *
+ * @param dataFile File with all the registers
+ * @param indexFile File with all the indices
+ * @param header Header of the index file
+ * @param[out] numFound Number of found registers that match the filters
+ * @return Pointer to an array of size numFound containing all RRNs. User must deallocate it.
+ */
+static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *header, int *numFound)
 {
     if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
         return NULL;
@@ -80,40 +149,43 @@ static int *filter_index_keys(FILE *dataFile, FILE *indexFile, IndexHeader *head
         }
     }
 
-    int *stationCodeList = calloc(1, sizeof(int));
-    if (!stationCodeList)
+    // initially a size of 1, since we need to break in case the filter is just by a stationCode
+    int *stationRRNList = calloc(1, sizeof(int));
+    if (!stationRRNList)
     {
         free(filters);
         return NULL;
     }
 
+    // if the filter is by a stationCode
     if (stationCode != -1)
     {
-        // use index file
+        // use the index file to find the corresponding register, store its rrn in the array
         int byteOffset = search_index_key(indexFile, header, stationCode);
         if (byteOffset != -1)
         {
-            stationCodeList[*numFound] = stationCode;
+            stationRRNList[*numFound] = (byteOffset - HEADER_SIZE) / REGISTER_SIZE;
             (*numFound)++;
         }
     }
     else
     {
-        // linear scan
+        // if the filter doesn't use stationCode, do a linear search
         Register *filteredRegister = NULL;
         int currentRRN = 0;
-        int capacity = 4;
-        stationCodeList = realloc(stationCodeList, capacity * sizeof(int));
+        int capacity = 4; // initial capacity of 4, doubled when necessary
+        stationRRNList = realloc(stationRRNList, capacity * sizeof(int));
 
+        // get each register that matches the filter, save its RRN to the array.
         while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
         {
             if (*numFound >= capacity)
             {
                 capacity *= 2;
-                stationCodeList = realloc(stationCodeList, capacity * sizeof(int));
+                stationRRNList = realloc(stationRRNList, capacity * sizeof(int));
             }
 
-            stationCodeList[*numFound] = filteredRegister->stationCode;
+            stationRRNList[*numFound] = currentRRN;
             (*numFound)++;
             currentRRN++;
 
@@ -123,14 +195,15 @@ static int *filter_index_keys(FILE *dataFile, FILE *indexFile, IndexHeader *head
 
     free(filters);
 
+    // if no matching registers were found, return NULL
     if (*numFound == 0)
     {
-        free(stationCodeList);
+        free(stationRRNList);
         return NULL;
     }
 
     // caller needs to free it
-    return stationCodeList;
+    return stationRRNList;
 }
 
 Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
@@ -142,24 +215,24 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
     if (!indexHeader)
         return FAILURE;
 
+    if (indexHeader->status == STATUS_INCONSISTENT)
+        return FAILURE;
+
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredKeys = filter_index_keys(dataFile, indexFile, indexHeader, &numFound);
+        int *filteredKeys = filter_index_rrn(dataFile, indexFile, indexHeader, &numFound);
 
         if (filteredKeys)
         {
             for (int j = 0; j < numFound; j++)
             {
-                int byteOffset = search_index_key(indexFile, indexHeader, filteredKeys[j]);
-                if (byteOffset != -1)
-                {
-                    fseek(dataFile, byteOffset, SEEK_SET);
-                    Register *printedRegister = read_register(dataFile);
+                // Go to its position using its byteOffset, read it and print it
+                fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredKeys[j]), SEEK_SET);
+                Register *printedRegister = read_register(dataFile);
 
-                    print_register(printedRegister);
-                    destroy_register(&printedRegister);
-                }
+                print_register(printedRegister);
+                destroy_register(&printedRegister);
             }
         }
         else
@@ -174,7 +247,6 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
     return SUCCESS;
 }
 
-// todo: not happy with the current state of this function
 Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
 {
     if (!dataFile || !indexFile)
@@ -200,15 +272,16 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
             if (search_index_key(indexFile, indexHeader, currentReg->stationCode) == -1)
             {
                 int rrn = (dataHeader->top != -1) ? dataHeader->top : dataHeader->nextRRN;
-
                 insert_register(dataFile, currentReg, dataHeader);
-                insert_index_key(indexFile, indexHeader, (IndexKey){currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)});
+
+                IndexKey insertedKey = {currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)};
+                insert_index_key(indexFile, indexHeader, insertedKey);
             }
 
             destroy_register(&currentReg);
         }
     }
-
+    
     if (write_data_header(dataFile, dataHeader) == FAILURE ||
         write_index_header(indexFile, indexHeader) == FAILURE)
     {
@@ -223,9 +296,22 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
     if (update_data_header_count(dataFile) == FAILURE)
         return FAILURE;
 
+    change_status(dataFile, STATUS_CONSISTENT);
     change_status(indexFile, STATUS_CONSISTENT);
 
     return SUCCESS;
+}
+
+static void remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHeader *header, int rrn)
+{
+    fseek(dataFile, HEADER_SIZE + (rrn * REGISTER_SIZE), SEEK_SET);
+    Register *reg = read_register(dataFile);
+    if (!reg)
+        return;
+    
+    remove_register(dataFile, rrn);
+    remove_index_key(indexFile, header, reg->stationCode);
+    destroy_register(&reg);
 }
 
 Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
@@ -246,17 +332,12 @@ Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredKeys = filter_index_keys(dataFile, indexFile, indexHeader, &numFound);
+        int *filteredKeys = filter_index_rrn(dataFile, indexFile, indexHeader, &numFound);
 
         if (filteredKeys)
         {
             for (int j = 0; j < numFound; j++)
-            {
-                int byteOffset = search_index_key(indexFile, indexHeader, filteredKeys[j]);
-                remove_register(dataFile, (byteOffset - HEADER_SIZE) / REGISTER_SIZE);
-
-                remove_index_key(indexFile, indexHeader, filteredKeys[j]);
-            }
+                remove_register_and_index(dataFile, indexFile, indexHeader, filteredKeys[j]);
 
             free(filteredKeys);
         }

@@ -15,6 +15,20 @@ Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
 Aluno:  Luiz Filipe Sá Vioto            | NºUSP: 16886252
 */
 
+typedef enum Option
+{
+    CSV_TO_BIN = 1,
+    PRINT_ALL,
+    PRINT_WHERE,
+    DELETE_WHERE,
+    INSERT,
+    UPDATE_WHERE,
+    CREATE_INDEX,
+    SEARCH_WITH_INDEX,
+    INSERT_WITH_INDEX,
+    DELETE_WITH_INDEX
+} Option;
+
 static void print_file_failure()
 {
     printf("Falha no processamento do arquivo.\n");
@@ -24,12 +38,8 @@ int main()
 {
     setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console (not really needed after they fixed the test cases but nice to have)
 
-    FILE *bin = NULL;
-
-    char buffer[BUF_SIZE];
-    char filePath[BUF_SIZE], outputPath[BUF_SIZE];
-    int iterations = 0;
-    int option = -1;
+    char buffer[BUF_SIZE], filePath[BUF_SIZE], outputPath[BUF_SIZE];
+    int iterations = 0, option = -1;
 
     if (!fgets(buffer, BUF_SIZE, stdin))
         return 1;
@@ -40,33 +50,29 @@ int main()
         return 1;
     }
 
-    switch (option)
+    switch ((Option)option)
     {
-    // turning .csv into .bin, prints checksum
-    case 1:
+    case CSV_TO_BIN:
         if (sscanf(buffer, "%*d %s %s", filePath, outputPath) == 2) // %*d -> the * ignores the int
         {
             FILE *csv = fopen(filePath, "r");
-            bin = fopen(outputPath, "wb+");
+            FILE *data = fopen(outputPath, "wb+"); // wb+ because the "update_header_count" function uses it
 
-            if (csv && bin && write_bin_file(csv, bin) == SUCCESS) // need to check for bin in every case so it can be safely closed
+            if (csv && data && write_data_file(csv, data) == SUCCESS)
             {
-                fclose(bin);
-                bin = NULL;
+                fclose(csv);
+                fclose(data);
 
                 binary_on_screen(outputPath);
             }
             else
             {
+                if (csv)
+                    fclose(csv);
+                if (data)
+                    fclose(data);
                 print_file_failure();
             }
-
-            if (csv)
-                fclose(csv);
-            if (bin)
-                fclose(bin);
-
-            bin = NULL;
         }
         else
         {
@@ -74,18 +80,16 @@ int main()
         }
 
         break;
-    // prints all registers
-    case 2:
+    case PRINT_ALL:
         if (sscanf(buffer, "%*d %s", filePath) == 1)
         {
-            bin = fopen(filePath, "rb");
+            FILE *data = fopen(filePath, "rb");
 
-            if (bin)
+            if (data)
             {
-                print_all_data(bin);
+                print_all_data(data);
 
-                fclose(bin);
-                bin = NULL;
+                fclose(data);
             }
             else
             {
@@ -98,18 +102,16 @@ int main()
         }
 
         break;
-    // prints all registers where (search criteria)
-    case 3:
+    case PRINT_WHERE:
         if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(filePath, "rb");
+            FILE *data = fopen(filePath, "rb");
 
-            if (bin)
+            if (data)
             {
-                print_all_data_where(bin, iterations);
+                print_all_data_where(data, iterations);
 
-                fclose(bin);
-                bin = NULL;
+                fclose(data);
             }
             else
             {
@@ -121,18 +123,16 @@ int main()
             print_file_failure();
         }
         break;
-    // deletes registers where (search criteria)
-    case 4:
+    case DELETE_WHERE:
         if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(filePath, "rb+");
+            FILE *data = fopen(filePath, "rb+");
 
-            if (bin)
+            if (data)
             {
-                delete_all_data_where(bin, iterations);
+                delete_all_data_where(data, iterations);
 
-                fclose(bin);
-                bin = NULL;
+                fclose(data);
 
                 binary_on_screen(filePath);
             }
@@ -146,18 +146,16 @@ int main()
             print_file_failure();
         }
         break;
-    // inserts a register
-    case 5:
+    case INSERT:
         if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(filePath, "rb+");
+            FILE *data = fopen(filePath, "rb+");
 
-            if (bin)
+            if (data)
             {
-                insert_data(bin, iterations);
+                insert_data(data, iterations);
 
-                fclose(bin);
-                bin = NULL;
+                fclose(data);
 
                 binary_on_screen(filePath);
             }
@@ -171,18 +169,16 @@ int main()
             print_file_failure();
         }
         break;
-    // updates registers where (search criteria)
-    case 6:
+    case UPDATE_WHERE:
         if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
         {
-            bin = fopen(filePath, "rb+");
+            FILE *data = fopen(filePath, "rb+");
 
-            if (bin)
+            if (data)
             {
-                update_data_where(bin, iterations);
+                update_data_where(data, iterations);
 
-                fclose(bin);
-                bin = NULL;
+                fclose(data);
 
                 binary_on_screen(filePath);
             }
@@ -196,24 +192,27 @@ int main()
             print_file_failure();
         }
         break;
-    case 7:
+    case CREATE_INDEX:
         if (sscanf(buffer, "%*d %s %s", filePath, outputPath) == 2)
         {
-            bin = fopen(filePath, "rb");
+            FILE *data = fopen(filePath, "rb");
             FILE *index = fopen(outputPath, "wb+");
 
-            if (bin && index)
+            if (data && index)
             {
-                create_index(bin, index);
+                create_index(data, index);
 
-                fclose(bin);
+                fclose(data);
                 fclose(index);
-                bin = NULL;
 
                 binary_on_screen(outputPath);
             }
             else
             {
+                if (data)
+                    fclose(data);
+                if (index)
+                    fclose(index);
                 print_file_failure();
             }
         }
@@ -222,22 +221,25 @@ int main()
             print_file_failure();
         }
         break;
-    case 8:
+    case SEARCH_WITH_INDEX:
         if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
         {
-            bin = fopen(filePath, "rb");
+            FILE *data = fopen(filePath, "rb");
             FILE *index = fopen(outputPath, "rb");
 
-            if (bin && index)
+            if (data && index)
             {
-                search_with_index(bin, index, iterations);
-                fclose(bin);
+                search_with_index(data, index, iterations);
 
+                fclose(data);
                 fclose(index);
-                bin = NULL;
             }
             else
             {
+                if (data)
+                    fclose(data);
+                if (index)
+                    fclose(index);
                 print_file_failure();
             }
         }
@@ -246,26 +248,28 @@ int main()
             print_file_failure();
         }
         break;
-    case 9:
+    case INSERT_WITH_INDEX:
         if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
         {
-            bin = fopen(filePath, "rb+");
+            FILE *data = fopen(filePath, "rb+");
             FILE *index = fopen(outputPath, "rb+");
 
-            if (bin && index)
+            if (data && index)
             {
-                insert_index(bin, index, iterations);
-                change_status(bin, STATUS_CONSISTENT);
-                fclose(bin);
-                bin = NULL;
+                insert_index(data, index, iterations);
 
+                fclose(data);
                 fclose(index);
-                
+
                 binary_on_screen(filePath);
                 binary_on_screen(outputPath);
             }
             else
             {
+                if (data)
+                    fclose(data);
+                if (index)
+                    fclose(index);
                 print_file_failure();
             }
         }
@@ -274,19 +278,17 @@ int main()
             print_file_failure();
         }
         break;
-    case 10:
+    case DELETE_WITH_INDEX:
         if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
         {
-            bin = fopen(filePath, "rb+");
+            FILE *data = fopen(filePath, "rb+");
             FILE *index = fopen(outputPath, "rb+");
 
-            if (bin && index)
+            if (data && index)
             {
-                delete_index(bin, index, iterations);
-                
-                fclose(bin);
-                bin = NULL;
+                delete_index(data, index, iterations);
 
+                fclose(data);
                 fclose(index);
 
                 binary_on_screen(filePath);
@@ -294,6 +296,10 @@ int main()
             }
             else
             {
+                if (data)
+                    fclose(data);
+                if (index)
+                    fclose(index);
                 print_file_failure();
             }
         }
@@ -306,9 +312,6 @@ int main()
         printf("Invalid option! The cases go from 1 to 6.\n");
         break;
     }
-
-    if (bin) // the attribuitions of bin to NULL after closing are so this doesnt close an already closed address
-        fclose(bin);
 
     return 0;
 }

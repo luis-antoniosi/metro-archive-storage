@@ -8,6 +8,8 @@
 //             FILE HEADER               //
 //---------------------------------------//
 
+#define HEADER_SIZE 17
+
 /**
  * @struct DataHeader
  * @brief Represents the header record of the binary data file.
@@ -69,7 +71,7 @@ Status update_data_header_count(FILE *regFile);
  *
  * @return SUCCESS or FAILURE
  */
-Status write_bin_file(FILE *inputFile, FILE *outputFile);
+Status write_data_file(FILE *inputFile, FILE *outputFile);
 
 // Print
 /**
