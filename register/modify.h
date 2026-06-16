@@ -27,8 +27,9 @@ Status insert_register(FILE *binFile, Register *data, DataHeader *header);
  * @brief Removes a register by setting the removed flag and doing the appropriate changes
  *
  * @param binFile Open binary file
+ * @param removedRRN RRN of the register
  */
-void remove_register(FILE *binFile);
+void remove_register(FILE *binFile, int removedRRN);
 
 /**
  * @brief Updates a binary file with a modified register based on search criteria (filters)

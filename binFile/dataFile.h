@@ -56,15 +56,6 @@ DataHeader *read_data_header(FILE *regFile);
  */
 Status update_data_header_count(FILE *regFile);
 
-/**
- * @brief Writes a specified status to the beginning of a file
- *
- * @param regFile file where the status will be written
- * @param status char for the status; STATUS_CONSISTENT ('1') or STATUS_INCONSISTENT ('0')
- */
-void change_status(FILE *regFile, char status);
-// TODO: Change this
-
 //------------------------------------------//
 //             FILE FUNCTIONS               //
 //------------------------------------------//
@@ -130,16 +121,5 @@ Status insert_data(FILE *regFile, int iterations);
  * @return SUCCESS or FAILURE
  */
 Status update_data_where(FILE *regFile, int iterations);
-
-//
-
-// Print binary
-/**
- * @brief Prints a checksum to validate a binary file
- *
- * @param fileName String containing the name of a binary file
- */
-void binary_on_screen(char *fileName);
-// TOOD: This somewhere else
 
 #endif

@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <string.h>
+
 #include "types.h"
+#include "utils/utils.h"
+
 #include "register/register.h"
 #include "binFile/dataFile.h"
 #include "binFile/indexFile.h"
-
-#define INPUT_SIZE 64
 
 /*
 Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
@@ -26,7 +27,7 @@ int main()
     FILE *bin = NULL;
 
     char buffer[BUF_SIZE];
-    char filePath[INPUT_SIZE], outputPath[INPUT_SIZE];
+    char filePath[BUF_SIZE], outputPath[BUF_SIZE];
     int iterations = 0;
     int option = -1;
 

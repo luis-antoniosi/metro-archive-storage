@@ -5,17 +5,18 @@
 #include "register.h"
 
 /**
- * @brief reads a Register from a file and evaluates if it meets all the search filters
+ * @brief Reads a Register from a file and evaluates if it meets all the search filters
  *
  * This function extracts the next register from a binFile and compares it to an array of filters.
  *
  * @param binFile Pointer to the binary file
  * @param filters Array containing the search field filters
  * @param pairIterations Number of filters in the array
+ * @param[out] currentRRN RRN of the returned register
  *
  * @return Register* of a register that meets all search filters, NULL otherwise
  */
-Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations);
+Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *currentRRN);
 
 /**
  * @brief Reads the filters typed by the user

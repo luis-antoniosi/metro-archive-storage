@@ -9,6 +9,8 @@
 
 #include "bTree/bTree.h"
 
+#include "utils/utils.h"
+
 // DataHeader functions
 
 DataHeader *create_data_header()
@@ -158,13 +160,6 @@ Status update_data_header_count(FILE *dataFile)
     return SUCCESS;
 }
 
-void change_status(FILE *dataFile, char status)
-{
-    fseek(dataFile, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, dataFile);
-    fflush(dataFile);
-}
-
 // File Functions
 
 Status write_bin_file(FILE *inputFile, FILE *outputFile)
@@ -214,8 +209,6 @@ Status write_bin_file(FILE *inputFile, FILE *outputFile)
     return SUCCESS;
 }
 
-// printing related
-
 Status print_all_data(FILE *dataFile)
 {
     if (!dataFile)
@@ -243,61 +236,106 @@ Status print_all_data(FILE *dataFile)
     return SUCCESS;
 }
 
+// Helper function used in print_all_data_where, delete_all_data_where and update_data_where 
+static int *filter_data_rrn(FILE *dataFile, int rrnCapacity, int *numFound)
+{
+    if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
+        return NULL;
+
+    if (rrnCapacity == 0)
+        rrnCapacity++;
+
+    int *stationRRNList = NULL;
+    *numFound = 0;
+
+    int pairIterations = 0;
+    SearchField *filters = get_all_search_fields(&pairIterations);
+
+    int searchByStationCode = 0;
+    for (int j = 0; j < pairIterations; j++)
+    {
+        if (strcmp(filters[j].name, "codEstacao") == 0)
+        {
+            searchByStationCode = 1;
+            break;
+        }
+    }
+
+    if (searchByStationCode)
+        stationRRNList = calloc(1, sizeof(int));
+    else
+        stationRRNList = calloc(rrnCapacity, sizeof(int));
+
+    if (!stationRRNList)
+    {
+        free(stationRRNList);
+        return NULL;
+    }
+
+    Register *filteredRegister = NULL;
+    int currentRRN = 0;
+    while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
+    {
+        stationRRNList[*numFound] = currentRRN;
+
+        (*numFound)++;
+        currentRRN++;
+
+        destroy_register(&filteredRegister);
+
+        if (searchByStationCode)
+            break;
+    }
+
+    if ((*numFound) == 0)
+    {
+        free(filters);
+        free(stationRRNList);
+        return NULL;
+    }
+
+    free(filters);
+
+    // caller needs to free it
+    return stationRRNList;
+}
+
 Status print_all_data_where(FILE *dataFile, int iterations)
 {
     if (!dataFile)
         return FAILURE;
 
+    DataHeader *header = read_data_header(dataFile);
+    if (!header)
+        return FAILURE;
+
     for (int i = 0; i < iterations; i++)
     {
-        if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
-            return FAILURE;
+        int numFound = 0;
+        int *filteredRRNs = filter_data_rrn(dataFile, header->nextRRN, &numFound);
 
-        int pairIterations = 0;
-        SearchField *filters = get_all_search_fields(&pairIterations);
-
-        // verifies if the search uses primary key
-        int searchByStationCode = 0;
-        for (int j = 0; j < pairIterations; j++)
+        if (filteredRRNs)
         {
-            if (strcmp(filters[j].name, "codEstacao") == 0)
+            for (int j = 0; j < numFound; j++)
             {
-                searchByStationCode = 1;
-                break;
+                fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET);
+                Register *printedRegister = read_register(dataFile);
+
+                print_register(printedRegister);
+                destroy_register(&printedRegister);
             }
         }
-
-        Register *currentReg = NULL;
-        int anyMatches = 0; // variable to check if a register was found based on the fields
-
-        while ((currentReg = check_register_field_search(dataFile, filters, pairIterations)))
-        {
-            print_register(currentReg);
-
-            anyMatches = 1;
-
-            destroy_register(&currentReg);
-
-            // if primary key is used, break
-            if (searchByStationCode)
-            {
-                break;
-            }
-        }
-
-        if (!anyMatches)
+        else
             printf("Registro inexistente.\n");
 
         printf("\n");
-
-        free(filters);
+        free(filteredRRNs);
     }
 
+    free(header);
     return SUCCESS;
 }
 
-// delete
-// todo: combine this with select?
 Status delete_all_data_where(FILE *dataFile, int iterations)
 {
     if (!dataFile)
@@ -305,42 +343,26 @@ Status delete_all_data_where(FILE *dataFile, int iterations)
 
     change_status(dataFile, STATUS_INCONSISTENT);
 
+    DataHeader *header = read_data_header(dataFile);
+
+    if (!header)
+        return FAILURE;
+
     for (int i = 0; i < iterations; i++)
     {
-        if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
-            return FAILURE;
+        int numFound = 0;
+        int *filteredRRNs = filter_data_rrn(dataFile, header->nextRRN, &numFound);
 
-        int pairIterations = 0;
-        SearchField *filters = get_all_search_fields(&pairIterations);
-
-        // verifies if the search uses primary key
-        int searchByStationCode = 0;
-        for (int j = 0; j < pairIterations; j++)
+        if (filteredRRNs)
         {
-            if (strcmp(filters[j].name, "codEstacao") == 0)
-            {
-                searchByStationCode = 1;
-                break;
-            }
+            for (int j = 0; j < numFound; j++)
+                remove_register(dataFile, filteredRRNs[j]);
         }
 
-        Register *currentReg = NULL;
-        while ((currentReg = check_register_field_search(dataFile, filters, pairIterations)))
-        {
-            remove_register(dataFile);
-            fseek(dataFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
-
-            destroy_register(&currentReg);
-
-            // if primary key is used, break
-            if (searchByStationCode)
-            {
-                break;
-            }
-        }
-
-        free(filters);
+        free(filteredRRNs);
     }
+
+    free(header);
 
     if (update_data_header_count(dataFile) == FAILURE)
         return FAILURE;
@@ -382,7 +404,6 @@ Status insert_data(FILE *dataFile, int iterations)
     return SUCCESS;
 }
 
-// TODO: Combine this with select too?
 Status update_data_where(FILE *dataFile, int iterations)
 {
     if (!dataFile)
@@ -390,78 +411,36 @@ Status update_data_where(FILE *dataFile, int iterations)
 
     change_status(dataFile, STATUS_INCONSISTENT);
 
+    DataHeader *header = read_data_header(dataFile);
+    if (!header)
+        return FAILURE;
+
     for (int i = 0; i < iterations; i++)
     {
-        if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
-            return FAILURE;
-
-        int pairIterations = 0;
-        SearchField *filters = get_all_search_fields(&pairIterations);
-
-        // verifies if the search uses primary key
-        int searchByStationCode = 0;
-        for (int j = 0; j < pairIterations; j++)
-        {
-            if (strcmp(filters[j].name, "codEstacao") == 0)
-            {
-                searchByStationCode = 1;
-                break;
-            }
-        }
+        int numFound = 0;
+        int *filteredRRNs = filter_data_rrn(dataFile, header->nextRRN, &numFound);
 
         // not really a search field in this case, but can be repurposed.
         int updatePairIterations = 0;
         SearchField *updateFilters = get_all_search_fields(&updatePairIterations);
 
-        Register *currentReg = NULL;
-        while ((currentReg = check_register_field_search(dataFile, filters, pairIterations)))
+        if (filteredRRNs)
         {
-            update_register(dataFile, currentReg, updateFilters, updatePairIterations);
-
-            destroy_register(&currentReg);
-
-            // if primary key is used, break
-            if (searchByStationCode)
+            for (int j = 0; j < numFound; j++)
             {
-                break;
+                fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET);
+                Register *updatedRegister = read_register(dataFile);
+                
+                update_register(dataFile, updatedRegister, updateFilters, updatePairIterations);
+                destroy_register(&updatedRegister);
             }
         }
 
-        free(filters);
+        free(filteredRRNs);
         free(updateFilters);
     }
 
     change_status(dataFile, STATUS_CONSISTENT);
 
     return SUCCESS;
-}
-
-// didn't really make our own, just copied and changed the variables' names
-void binary_on_screen(char *fileName)
-{
-    FILE *dataFile = NULL;
-
-    if (!fileName || !(dataFile = fopen(fileName, "rb")))
-        return;
-
-    fseek(dataFile, 0, SEEK_END);
-    long totalBytes = ftell(dataFile);
-
-    fseek(dataFile, 0, SEEK_SET);
-    unsigned char *bytesStr = malloc(sizeof(unsigned char) * totalBytes);
-    if (fread(bytesStr, 1, totalBytes, dataFile) != (long unsigned int)totalBytes)
-    {
-        printf("Unable to read file\n");
-        free(bytesStr);
-        return;
-    }
-
-    unsigned long byteSum = 0;
-    for (long i = 0; i < totalBytes; i++)
-        byteSum += (unsigned long)bytesStr[i];
-
-    printf("%lf\n", (byteSum / 100.0));
-
-    free(bytesStr);
-    fclose(dataFile);
 }

@@ -35,7 +35,7 @@ static int check_match(Register *data, SearchField field)
     return 0;
 }
 
-Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations)
+Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *currentRRN)
 {
     Register *currentRegister = NULL;
 
@@ -45,6 +45,7 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
         if (currentRegister->removed == '1')
         {
             destroy_register(&currentRegister);
+            (*currentRRN)++;
             continue;
         }
 
@@ -62,6 +63,7 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
             return currentRegister;
 
         destroy_register(&currentRegister);
+        (*currentRRN)++;
     }
 
     return NULL;

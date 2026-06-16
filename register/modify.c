@@ -105,15 +105,12 @@ Status insert_register(FILE *binFile, Register *data, DataHeader *header)
 
 // Delete
 
-void remove_register(FILE *binFile)
+void remove_register(FILE *binFile, int removedRRN)
 {
     char removed = '1';
 
-    // rewind to start of register
-    fseek(binFile, -REGISTER_SIZE, SEEK_CUR);
-    int registerStart = ftell(binFile);
-
-    int removedRRN = (registerStart - HEADER_SIZE) / REGISTER_SIZE;
+    int registerStart = HEADER_SIZE + (REGISTER_SIZE * removedRRN);
+    fseek(binFile, registerStart, SEEK_SET);
 
     // writes the removed flag
     fwrite(&removed, sizeof(char), 1, binFile);
@@ -129,7 +126,7 @@ void remove_register(FILE *binFile)
     fwrite(&removedRRN, sizeof(int), 1, binFile);
 
     // update the "next" field of the register to old top value
-    fseek(binFile, registerStart + 1, SEEK_SET);
+    fseek(binFile, registerStart + sizeof(char), SEEK_SET);
     fwrite(&topValue, sizeof(int), 1, binFile);
 
     return;

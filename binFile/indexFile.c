@@ -12,6 +12,8 @@
 #include "bTree/bTree.h"
 #include "bTree/modify.h"
 
+#include "utils/utils.h"
+
 // part 2; index related
 
 Status create_index(FILE *dataFile, FILE *indexFile)
@@ -45,7 +47,7 @@ Status create_index(FILE *dataFile, FILE *indexFile)
     write_index_header(indexFile, header);
     free(header);
 
-    change_status(indexFile, STATUS_CONSISTENT); // TODO: change this and other functions to another .c
+    change_status(indexFile, STATUS_CONSISTENT);
 
     return SUCCESS;
 }
@@ -94,7 +96,8 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
         {
             fseek(dataFile, HEADER_SIZE, SEEK_SET);
             Register *reg = NULL;
-            while ((reg = check_register_field_search(dataFile, filters, pairIterations)))
+            int currentRRN = 0;
+            while ((reg = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
             {
                 print_register(reg);
                 anyMatches = 1;
@@ -204,7 +207,8 @@ Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
 
                 if (reg && reg->removed != '1')
                 {
-                    remove_register(dataFile);
+                    // TODO: Fix this
+                    remove_register(dataFile, 0);
                     remove_index_key(indexFile, indexHeader, stationCode);
                 }
 
@@ -214,9 +218,10 @@ Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
         else
         {
             Register *reg = NULL;
-            while ((reg = check_register_field_search(dataFile, filters, pairIterations)))
+            int currentRRN = 0;
+            while ((reg = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
             {
-                remove_register(dataFile);
+                remove_register(dataFile, 0);
                 fseek(dataFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
 
                 remove_index_key(indexFile, indexHeader, reg->stationCode);
