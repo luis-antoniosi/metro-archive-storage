@@ -44,12 +44,93 @@ Status create_index(FILE *dataFile, FILE *indexFile)
         rrn++;
     }
 
-    write_index_header(indexFile, header);
+    if (write_index_header(indexFile, header) == FAILURE)
+    {
+        free(header);
+        return FAILURE;
+    }
+
     free(header);
 
     change_status(indexFile, STATUS_CONSISTENT);
 
     return SUCCESS;
+}
+
+static int *filter_index_keys(FILE *dataFile, FILE *indexFile, IndexHeader *header, int *numFound)
+{
+    if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
+        return NULL;
+
+    *numFound = 0;
+
+    int pairIterations = 0;
+    SearchField *filters = get_all_search_fields(&pairIterations);
+
+    if (!filters)
+        return NULL;
+
+    int stationCode = -1;
+    for (int j = 0; j < pairIterations; j++)
+    {
+        if (strcmp(filters[j].name, "codEstacao") == 0)
+        {
+            stationCode = atoi(filters[j].value);
+            break;
+        }
+    }
+
+    int *stationCodeList = calloc(1, sizeof(int));
+    if (!stationCodeList)
+    {
+        free(filters);
+        return NULL;
+    }
+
+    if (stationCode != -1)
+    {
+        // use index file
+        int byteOffset = search_index_key(indexFile, header, stationCode);
+        if (byteOffset != -1)
+        {
+            stationCodeList[*numFound] = stationCode;
+            (*numFound)++;
+        }
+    }
+    else
+    {
+        // linear scan
+        Register *filteredRegister = NULL;
+        int currentRRN = 0;
+        int capacity = 4;
+        stationCodeList = realloc(stationCodeList, capacity * sizeof(int));
+
+        while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
+        {
+            if (*numFound >= capacity)
+            {
+                capacity *= 2;
+                stationCodeList = realloc(stationCodeList, capacity * sizeof(int));
+            }
+
+            stationCodeList[*numFound] = filteredRegister->stationCode;
+            (*numFound)++;
+            currentRRN++;
+
+            destroy_register(&filteredRegister);
+        }
+    }
+
+    free(filters);
+
+    if (*numFound == 0)
+    {
+        free(stationCodeList);
+        return NULL;
+    }
+
+    // caller needs to free it
+    return stationCodeList;
 }
 
 Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
@@ -63,54 +144,32 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
 
     for (int i = 0; i < iterations; i++)
     {
-        int pairIterations = 0;
-        SearchField *filters = get_all_search_fields(&pairIterations);
+        int numFound = 0;
+        int *filteredKeys = filter_index_keys(dataFile, indexFile, indexHeader, &numFound);
 
-        int stationCode = -1;
-        for (int j = 0; j < pairIterations; j++)
+        if (filteredKeys)
         {
-            if (strcmp(filters[j].name, "codEstacao") == 0)
+            for (int j = 0; j < numFound; j++)
             {
-                stationCode = atoi(filters[j].value);
-                break;
-            }
-        }
-
-        int anyMatches = 0;
-        if (stationCode != -1)
-        {
-            int byteOffset = search_index_key(indexFile, indexHeader, stationCode);
-            if (byteOffset != -1)
-            {
-                fseek(dataFile, byteOffset, SEEK_SET);
-                Register *reg = read_register(dataFile);
-                if (reg && reg->removed != '1')
+                int byteOffset = search_index_key(indexFile, indexHeader, filteredKeys[j]);
+                if (byteOffset != -1)
                 {
-                    print_register(reg);
-                    anyMatches = 1;
+                    fseek(dataFile, byteOffset, SEEK_SET);
+                    Register *printedRegister = read_register(dataFile);
+
+                    print_register(printedRegister);
+                    destroy_register(&printedRegister);
                 }
-                destroy_register(&reg);
             }
         }
         else
-        {
-            fseek(dataFile, HEADER_SIZE, SEEK_SET);
-            Register *reg = NULL;
-            int currentRRN = 0;
-            while ((reg = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
-            {
-                print_register(reg);
-                anyMatches = 1;
-                destroy_register(&reg);
-            }
-        }
-
-        if (!anyMatches)
             printf("Registro inexistente.\n");
 
         printf("\n");
-        free(filters);
+        free(filteredKeys);
     }
+
+    free(indexHeader);
 
     return SUCCESS;
 }
@@ -150,8 +209,14 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
         }
     }
 
-    write_data_header(dataFile, dataHeader);
-    write_index_header(indexFile, indexHeader);
+    if (write_data_header(dataFile, dataHeader) == FAILURE ||
+        write_index_header(indexFile, indexHeader) == FAILURE)
+    {
+        free(dataHeader);
+        free(indexHeader);
+        return FAILURE;
+    }
+
     free(dataHeader);
     free(indexHeader);
 
@@ -180,59 +245,28 @@ Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
 
     for (int i = 0; i < iterations; i++)
     {
-        fseek(dataFile, HEADER_SIZE, SEEK_SET);
+        int numFound = 0;
+        int *filteredKeys = filter_index_keys(dataFile, indexFile, indexHeader, &numFound);
 
-        int pairIterations = 0;
-        SearchField *filters = get_all_search_fields(&pairIterations);
-
-        int stationCode = -1;
-        for (int j = 0; j < pairIterations; j++)
+        if (filteredKeys)
         {
-            if (strcmp(filters[j].name, "codEstacao") == 0)
+            for (int j = 0; j < numFound; j++)
             {
-                stationCode = atoi(filters[j].value);
-                break;
+                int byteOffset = search_index_key(indexFile, indexHeader, filteredKeys[j]);
+                remove_register(dataFile, (byteOffset - HEADER_SIZE) / REGISTER_SIZE);
+
+                remove_index_key(indexFile, indexHeader, filteredKeys[j]);
             }
+
+            free(filteredKeys);
         }
-
-        if (stationCode != -1)
-        {
-            int byteOffset = search_index_key(indexFile, indexHeader, stationCode);
-
-            if (byteOffset != -1)
-            {
-                fseek(dataFile, byteOffset, SEEK_SET);
-
-                Register *reg = read_register(dataFile);
-
-                if (reg && reg->removed != '1')
-                {
-                    // TODO: Fix this
-                    remove_register(dataFile, 0);
-                    remove_index_key(indexFile, indexHeader, stationCode);
-                }
-
-                destroy_register(&reg);
-            }
-        }
-        else
-        {
-            Register *reg = NULL;
-            int currentRRN = 0;
-            while ((reg = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
-            {
-                remove_register(dataFile, 0);
-                fseek(dataFile, REGISTER_SIZE - sizeof(char) - sizeof(int), SEEK_CUR);
-
-                remove_index_key(indexFile, indexHeader, reg->stationCode);
-                destroy_register(&reg);
-            }
-        }
-
-        free(filters);
     }
 
-    write_index_header(indexFile, indexHeader);
+    if (write_index_header(indexFile, indexHeader) == FAILURE)
+    {
+        free(indexHeader);
+        return FAILURE;
+    }
 
     if (update_data_header_count(dataFile) == FAILURE)
     {

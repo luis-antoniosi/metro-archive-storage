@@ -236,20 +236,19 @@ Status print_all_data(FILE *dataFile)
     return SUCCESS;
 }
 
-// Helper function used in print_all_data_where, delete_all_data_where and update_data_where 
-static int *filter_data_rrn(FILE *dataFile, int rrnCapacity, int *numFound)
+// Helper function used in print_all_data_where, delete_all_data_where and update_data_where
+static int *filter_data_rrn(FILE *dataFile, int *numFound)
 {
     if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
         return NULL;
 
-    if (rrnCapacity == 0)
-        rrnCapacity++;
-
-    int *stationRRNList = NULL;
     *numFound = 0;
 
     int pairIterations = 0;
     SearchField *filters = get_all_search_fields(&pairIterations);
+
+    if (!filters)
+        return NULL;
 
     int searchByStationCode = 0;
     for (int j = 0; j < pairIterations; j++)
@@ -261,13 +260,16 @@ static int *filter_data_rrn(FILE *dataFile, int rrnCapacity, int *numFound)
         }
     }
 
+    int *stationRRNList = NULL;
+    int capacity = 4;
     if (searchByStationCode)
         stationRRNList = calloc(1, sizeof(int));
     else
-        stationRRNList = calloc(rrnCapacity, sizeof(int));
+        stationRRNList = calloc(capacity, sizeof(int));
 
     if (!stationRRNList)
     {
+        free(filters);
         free(stationRRNList);
         return NULL;
     }
@@ -276,6 +278,12 @@ static int *filter_data_rrn(FILE *dataFile, int rrnCapacity, int *numFound)
     int currentRRN = 0;
     while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
     {
+        if (*numFound >= capacity)
+        {
+            capacity *= 2;
+            stationRRNList = realloc(stationRRNList, capacity * sizeof(int));
+        }
+
         stationRRNList[*numFound] = currentRRN;
 
         (*numFound)++;
@@ -305,14 +313,10 @@ Status print_all_data_where(FILE *dataFile, int iterations)
     if (!dataFile)
         return FAILURE;
 
-    DataHeader *header = read_data_header(dataFile);
-    if (!header)
-        return FAILURE;
-
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredRRNs = filter_data_rrn(dataFile, header->nextRRN, &numFound);
+        int *filteredRRNs = filter_data_rrn(dataFile, &numFound);
 
         if (filteredRRNs)
         {
@@ -332,7 +336,6 @@ Status print_all_data_where(FILE *dataFile, int iterations)
         free(filteredRRNs);
     }
 
-    free(header);
     return SUCCESS;
 }
 
@@ -343,15 +346,10 @@ Status delete_all_data_where(FILE *dataFile, int iterations)
 
     change_status(dataFile, STATUS_INCONSISTENT);
 
-    DataHeader *header = read_data_header(dataFile);
-
-    if (!header)
-        return FAILURE;
-
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredRRNs = filter_data_rrn(dataFile, header->nextRRN, &numFound);
+        int *filteredRRNs = filter_data_rrn(dataFile, &numFound);
 
         if (filteredRRNs)
         {
@@ -361,8 +359,6 @@ Status delete_all_data_where(FILE *dataFile, int iterations)
 
         free(filteredRRNs);
     }
-
-    free(header);
 
     if (update_data_header_count(dataFile) == FAILURE)
         return FAILURE;
@@ -378,8 +374,8 @@ Status insert_data(FILE *dataFile, int iterations)
         return FAILURE;
 
     change_status(dataFile, STATUS_INCONSISTENT);
-    DataHeader *currHeader = read_data_header(dataFile);
-    if (!currHeader)
+    DataHeader *header = read_data_header(dataFile);
+    if (!header)
         return FAILURE;
 
     for (int i = 0; i < iterations; i++)
@@ -388,13 +384,13 @@ Status insert_data(FILE *dataFile, int iterations)
 
         if (currentReg)
         {
-            insert_register(dataFile, currentReg, currHeader);
+            insert_register(dataFile, currentReg, header);
             destroy_register(&currentReg);
         }
     }
 
-    write_data_header(dataFile, currHeader);
-    free(currHeader);
+    write_data_header(dataFile, header);
+    free(header);
 
     if (update_data_header_count(dataFile) == FAILURE)
         return FAILURE;
@@ -411,14 +407,10 @@ Status update_data_where(FILE *dataFile, int iterations)
 
     change_status(dataFile, STATUS_INCONSISTENT);
 
-    DataHeader *header = read_data_header(dataFile);
-    if (!header)
-        return FAILURE;
-
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredRRNs = filter_data_rrn(dataFile, header->nextRRN, &numFound);
+        int *filteredRRNs = filter_data_rrn(dataFile, &numFound);
 
         // not really a search field in this case, but can be repurposed.
         int updatePairIterations = 0;
@@ -430,7 +422,7 @@ Status update_data_where(FILE *dataFile, int iterations)
             {
                 fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET);
                 Register *updatedRegister = read_register(dataFile);
-                
+
                 update_register(dataFile, updatedRegister, updateFilters, updatePairIterations);
                 destroy_register(&updatedRegister);
             }
