@@ -1,18 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>             // for strcmp
+#include <string.h> // for strcmp
 
 #include "indexFile.h"
-#include "dataFile.h"           // for write_data_header, read_data_header and update_data_header_count
+#include "dataFile.h" // for write_data_header, read_data_header and update_data_header_count
 
-#include "register/register.h"  // for read_register, destroy_register and print_register. Register and SearchField types.
-#include "register/modify.h"    // for input_register, insert_register and remove_register
+#include "register/register.h" // for read_register, destroy_register and print_register. Register and SearchField types.
+#include "register/modify.h"   // for input_register, insert_register and remove_register
 #include "register/search.h"
 
 #include "bTree/bTree.h"
 #include "bTree/modify.h"
 
-#include "utils/utils.h"        // for change_status
+#include "utils/utils.h" // for change_status
 
 // IndexHeader functions
 
@@ -281,7 +281,7 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
             destroy_register(&currentReg);
         }
     }
-    
+
     if (write_data_header(dataFile, dataHeader) == FAILURE ||
         write_index_header(indexFile, indexHeader) == FAILURE)
     {
@@ -308,7 +308,7 @@ static void remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHead
     Register *reg = read_register(dataFile);
     if (!reg)
         return;
-    
+
     remove_register(dataFile, rrn);
     remove_index_key(indexFile, header, reg->stationCode);
     destroy_register(&reg);
@@ -359,6 +359,52 @@ Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
     change_status(indexFile, STATUS_CONSISTENT);
 
     free(indexHeader);
+
+    return SUCCESS;
+}
+
+Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
+{
+    if (!sourceFile || !joinFile || !indexFile)
+        return FAILURE;
+
+    if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
+        return FAILURE;
+
+    IndexHeader *indexHeader = read_index_header(indexFile);
+    if (!indexHeader || indexHeader->status == STATUS_INCONSISTENT)
+        return FAILURE;
+
+    Register *sourceRegister = NULL;
+    while ((sourceRegister = read_register(sourceFile)))
+    {
+        if (sourceRegister->removed == RECORD_REMOVED)
+        {
+            destroy_register(&sourceRegister);
+            continue;
+        }
+
+        int byteOffset = search_index_key(indexFile, indexHeader, sourceRegister->nextStationCode);
+        if (byteOffset != -1)
+        {
+            fseek(joinFile, byteOffset, SEEK_SET);
+            Register *joinRegister = read_register(joinFile);
+
+            if (joinRegister->removed == RECORD_ACTIVE)
+            {
+                printf("%d %s %s %d %s\n",
+                       sourceRegister->stationCode,
+                       sourceRegister->stationName,
+                       sourceRegister->lineName,
+                       sourceRegister->nextStationCode,
+                       joinRegister->stationName);
+            }
+
+            destroy_register(&joinRegister);
+        }
+
+        destroy_register(&sourceRegister);
+    }
 
     return SUCCESS;
 }

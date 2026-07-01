@@ -92,4 +92,6 @@ Status insert_index(FILE *registerFile, FILE *indexFile, int iterations);
  */
 Status delete_index(FILE *registerFile, FILE *indexFile, int iterations);
 
+Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile);
+
 #endif

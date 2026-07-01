@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "types.h"
 #include "utils/utils.h"
@@ -9,6 +10,12 @@
 #include "register/register.h"
 #include "binFile/dataFile.h"
 #include "binFile/indexFile.h"
+
+// TODO: update buff variables(?)
+// TODO: update if order (checking for function SUCCESS)
+// TODO: should probably check if a file is consistent before updating/reading it..
+
+#define CLOSE_FILES_FAILURE(...) close_files_in_failure(__VA_ARGS__, NULL)
 
 /*
 Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
@@ -27,7 +34,8 @@ typedef enum Option
     SEARCH_WITH_INDEX,
     INSERT_WITH_INDEX,
     DELETE_WITH_INDEX,
-    SELECT_JOIN
+    SELECT_JOIN,
+    SELECT_JOIN_INDEX
 } Option;
 
 static void print_file_failure()
@@ -35,11 +43,29 @@ static void print_file_failure()
     printf("Falha no processamento do arquivo.\n");
 }
 
+static void close_files_in_failure(FILE *firstFile, ...)
+{
+    va_list arg;
+    va_start(arg, firstFile);
+
+    FILE *currentFile = firstFile;
+
+    while (currentFile)
+    {
+        fclose(currentFile);
+        currentFile = va_arg(arg, FILE*);
+    }
+
+    va_end(arg);
+
+    print_file_failure();
+}
+
 int main()
 {
     setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console (not really needed after they fixed the test cases but nice to have)
 
-    char buffer[BUF_SIZE], filePath[BUF_SIZE], outputPath[BUF_SIZE];
+    char buffer[BUF_SIZE], filePath[BUF_SIZE], outputPath[BUF_SIZE], idxPath[BUF_SIZE];
     int iterations = 0, option = -1;
 
     if (!fgets(buffer, BUF_SIZE, stdin))
@@ -68,11 +94,7 @@ int main()
             }
             else
             {
-                if (csv)
-                    fclose(csv);
-                if (data)
-                    fclose(data);
-                print_file_failure();
+                CLOSE_FILES_FAILURE(csv, data);
             }
         }
         else
@@ -86,10 +108,8 @@ int main()
         {
             FILE *data = fopen(filePath, "rb");
 
-            if (data)
+            if (data && print_all_data(data) == SUCCESS)
             {
-                print_all_data(data);
-
                 fclose(data);
             }
             else
@@ -108,10 +128,8 @@ int main()
         {
             FILE *data = fopen(filePath, "rb");
 
-            if (data)
+            if (data && print_all_data_where(data, iterations) == SUCCESS)
             {
-                print_all_data_where(data, iterations);
-
                 fclose(data);
             }
             else
@@ -129,10 +147,8 @@ int main()
         {
             FILE *data = fopen(filePath, "rb+");
 
-            if (data)
+            if (data && delete_all_data_where(data, iterations) == SUCCESS)
             {
-                delete_all_data_where(data, iterations);
-
                 fclose(data);
 
                 binary_on_screen(filePath);
@@ -152,10 +168,8 @@ int main()
         {
             FILE *data = fopen(filePath, "rb+");
 
-            if (data)
+            if (data && insert_data(data, iterations) == SUCCESS)
             {
-                insert_data(data, iterations);
-
                 fclose(data);
 
                 binary_on_screen(filePath);
@@ -175,10 +189,8 @@ int main()
         {
             FILE *data = fopen(filePath, "rb+");
 
-            if (data)
+            if (data && update_data_where(data, iterations) == SUCCESS)
             {
-                update_data_where(data, iterations);
-
                 fclose(data);
 
                 binary_on_screen(filePath);
@@ -199,10 +211,8 @@ int main()
             FILE *data = fopen(filePath, "rb");
             FILE *index = fopen(outputPath, "wb+");
 
-            if (data && index)
+            if (data && index && create_index(data, index) == SUCCESS)
             {
-                create_index(data, index);
-
                 fclose(data);
                 fclose(index);
 
@@ -210,11 +220,7 @@ int main()
             }
             else
             {
-                if (data)
-                    fclose(data);
-                if (index)
-                    fclose(index);
-                print_file_failure();
+                CLOSE_FILES_FAILURE(data, index);
             }
         }
         else
@@ -228,20 +234,14 @@ int main()
             FILE *data = fopen(filePath, "rb");
             FILE *index = fopen(outputPath, "rb");
 
-            if (data && index)
+            if (data && index && search_with_index(data, index, iterations) == SUCCESS)
             {
-                search_with_index(data, index, iterations);
-
                 fclose(data);
                 fclose(index);
             }
             else
             {
-                if (data)
-                    fclose(data);
-                if (index)
-                    fclose(index);
-                print_file_failure();
+                CLOSE_FILES_FAILURE(data, index);
             }
         }
         else
@@ -255,10 +255,8 @@ int main()
             FILE *data = fopen(filePath, "rb+");
             FILE *index = fopen(outputPath, "rb+");
 
-            if (data && index)
+            if (data && index && insert_index(data, index, iterations) == SUCCESS)
             {
-                insert_index(data, index, iterations);
-
                 fclose(data);
                 fclose(index);
 
@@ -267,11 +265,7 @@ int main()
             }
             else
             {
-                if (data)
-                    fclose(data);
-                if (index)
-                    fclose(index);
-                print_file_failure();
+                CLOSE_FILES_FAILURE(data, index);
             }
         }
         else
@@ -285,10 +279,8 @@ int main()
             FILE *data = fopen(filePath, "rb+");
             FILE *index = fopen(outputPath, "rb+");
 
-            if (data && index)
+            if (data && index && delete_index(data, index, iterations) == SUCCESS)
             {
-                delete_index(data, index, iterations);
-
                 fclose(data);
                 fclose(index);
 
@@ -297,11 +289,7 @@ int main()
             }
             else
             {
-                if (data)
-                    fclose(data);
-                if (index)
-                    fclose(index);
-                print_file_failure();
+                CLOSE_FILES_FAILURE(data, index);
             }
         }
         else
@@ -315,25 +303,38 @@ int main()
             FILE *sourceFile = fopen(filePath, "rb");
             FILE *joinFile = fopen(outputPath, "rb");
 
-            if (sourceFile && joinFile)
+            if (sourceFile && joinFile && select_join(sourceFile, joinFile) == SUCCESS)
             {
-                select_join(sourceFile, joinFile);
-
                 fclose(sourceFile);
                 fclose(joinFile);
             }
             else
             {
-                if (sourceFile)
-                    fclose(sourceFile);
-                if (joinFile)
-                    fclose(joinFile);
-                print_file_failure();
+                CLOSE_FILES_FAILURE(sourceFile, joinFile);
             }
         }
         else
         {
             print_file_failure();
+        }
+        break;
+    case SELECT_JOIN_INDEX:
+        if (sscanf(buffer, "%*d %s %*s %s %*s %s", filePath, outputPath, idxPath) == 3)
+        {
+            FILE *sourceFile = fopen(filePath, "rb");
+            FILE *joinFile = fopen(outputPath, "rb");
+            FILE *indexFile = fopen(idxPath, "rb");
+
+            if (sourceFile && joinFile && indexFile && select_join_index(sourceFile, joinFile, indexFile) == SUCCESS)
+            {
+                fclose(sourceFile);
+                fclose(joinFile);
+                fclose(indexFile);
+            }
+            else
+            {
+                CLOSE_FILES_FAILURE(sourceFile, joinFile, indexFile);
+            }
         }
         break;
     default:

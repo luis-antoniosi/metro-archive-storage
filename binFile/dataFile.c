@@ -478,7 +478,12 @@ Status select_join(FILE *sourceFile, FILE *joinFile)
             if (joinRegister->removed == RECORD_ACTIVE &&
                 sourceRegister->nextStationCode == joinRegister->stationCode)
             {
-                printf("%d %s %s %d %s\n", sourceRegister->stationCode, sourceRegister->stationName, sourceRegister->lineName, sourceRegister->nextStationCode, joinRegister->stationName);
+                printf("%d %s %s %d %s\n", 
+                    sourceRegister->stationCode, 
+                    sourceRegister->stationName, 
+                    sourceRegister->lineName, 
+                    sourceRegister->nextStationCode, 
+                    joinRegister->stationName);
             }
 
             destroy_register(&joinRegister);
