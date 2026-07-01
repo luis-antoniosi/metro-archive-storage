@@ -38,4 +38,4 @@ zip:
 	zip $(ZIPFILE) $(SRCS) $(HDRS) makefile
 
 clean:
-	rm -f $(OBJS) $(TARGET) $(ZIPFILE) $(DEPS)
+	rm -f $(OBJS) $(TARGET) $(ZIPFILE) $(DEPS) *.bin

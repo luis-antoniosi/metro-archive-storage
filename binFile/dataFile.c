@@ -239,9 +239,9 @@ Status print_all_data(FILE *dataFile)
 // Helper function used in print_all_data_where, delete_all_data_where and update_data_where
 /**
  * @brief Filters registers' RRNs based on SearchField filters doing a linear search
- * 
+ *
  * @param dataFile File with all the registers
- * @param[out] numFound Number of found registers that match the filters 
+ * @param[out] numFound Number of found registers that match the filters
  * @return Pointer to an array of size numFound containing all RRNs. User must deallocate it.
  */
 static int *filter_data_rrn(FILE *dataFile, int *numFound)
@@ -268,8 +268,8 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
     }
 
     int *stationRRNList = NULL;
-    int capacity = 4;   // capacity is doubled and array is reallocated when necessary
-    
+    int capacity = 4; // capacity is doubled and array is reallocated when necessary
+
     // Will have a size of 1 if the search is by stationCode, since we need to break.
     if (searchByStationCode)
         stationRRNList = calloc(1, sizeof(int));
@@ -445,6 +445,47 @@ Status update_data_where(FILE *dataFile, int iterations)
     }
 
     change_status(dataFile, STATUS_CONSISTENT);
+
+    return SUCCESS;
+}
+
+Status select_join(FILE *sourceFile, FILE *joinFile)
+{
+    if (!sourceFile || !joinFile)
+        return FAILURE;
+
+    if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
+        return FAILURE;
+
+    Register *sourceRegister = NULL;
+    while ((sourceRegister = read_register(sourceFile)))
+    {
+        if (sourceRegister->removed == RECORD_REMOVED)
+        {
+            destroy_register(&sourceRegister);
+            continue;
+        }
+
+        if (fseek(joinFile, HEADER_SIZE, SEEK_SET))
+        {
+            destroy_register(&sourceRegister);
+            return FAILURE;
+        }
+
+        Register *joinRegister = NULL;
+        while ((joinRegister = read_register(joinFile)))
+        {
+            if (joinRegister->removed == RECORD_ACTIVE &&
+                sourceRegister->nextStationCode == joinRegister->stationCode)
+            {
+                printf("%d %s %s %d %s\n", sourceRegister->stationCode, sourceRegister->stationName, sourceRegister->lineName, sourceRegister->nextStationCode, joinRegister->stationName);
+            }
+
+            destroy_register(&joinRegister);
+        }
+
+        destroy_register(&sourceRegister);
+    }
 
     return SUCCESS;
 }

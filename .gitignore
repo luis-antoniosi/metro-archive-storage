@@ -5,6 +5,7 @@
 *.in
 
 !tests/*
+!tests/files/*
 
 # Prerequisites
 *.d

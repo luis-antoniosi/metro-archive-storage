@@ -26,7 +26,8 @@ typedef enum Option
     CREATE_INDEX,
     SEARCH_WITH_INDEX,
     INSERT_WITH_INDEX,
-    DELETE_WITH_INDEX
+    DELETE_WITH_INDEX,
+    SELECT_JOIN
 } Option;
 
 static void print_file_failure()
@@ -300,6 +301,33 @@ int main()
                     fclose(data);
                 if (index)
                     fclose(index);
+                print_file_failure();
+            }
+        }
+        else
+        {
+            print_file_failure();
+        }
+        break;
+    case SELECT_JOIN:
+        if (sscanf(buffer, "%*d %s %*s %s %*s", filePath, outputPath) == 2)
+        {
+            FILE *sourceFile = fopen(filePath, "rb");
+            FILE *joinFile = fopen(outputPath, "rb");
+
+            if (sourceFile && joinFile)
+            {
+                select_join(sourceFile, joinFile);
+
+                fclose(sourceFile);
+                fclose(joinFile);
+            }
+            else
+            {
+                if (sourceFile)
+                    fclose(sourceFile);
+                if (joinFile)
+                    fclose(joinFile);
                 print_file_failure();
             }
         }

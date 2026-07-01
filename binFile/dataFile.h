@@ -124,4 +124,6 @@ Status insert_data(FILE *regFile, int iterations);
  */
 Status update_data_where(FILE *regFile, int iterations);
 
+Status select_join(FILE *sourceFile, FILE *joinFile);
+
 #endif
