@@ -36,7 +36,8 @@ typedef enum Option
     DELETE_WITH_INDEX,
     SELECT_JOIN,
     SELECT_JOIN_INDEX,
-    ORDER_BY
+    ORDER_BY,
+    SELECT_JOIN_ORDER_BY
 } Option;
 
 static void print_file_failure()
@@ -337,6 +338,10 @@ int main()
                 CLOSE_FILES_FAILURE(sourceFile, joinFile, indexFile);
             }
         }
+        else
+        {
+            print_file_failure();
+        }
         break;
     case ORDER_BY:
         // the variable for idxPath is bad, but I'll eventually fix it
@@ -356,6 +361,31 @@ int main()
             {
                 CLOSE_FILES_FAILURE(data, ordered);
             }
+        }
+        else
+        {
+            print_file_failure();
+        }
+        break;
+    case SELECT_JOIN_ORDER_BY:
+        if (sscanf(buffer, "%*d %s %*s %s %*s", filePath, outputPath) == 2)
+        {
+            FILE *sourceFile = fopen(filePath, "rb+");
+            FILE *joinFile = fopen(outputPath, "rb+");
+
+            if (sourceFile && joinFile && select_join_order_by(sourceFile, joinFile) == SUCCESS)
+            {
+                fclose(sourceFile);
+                fclose(joinFile);
+            }
+            else
+            {
+                CLOSE_FILES_FAILURE(sourceFile, joinFile);
+            }
+        }
+        else
+        {
+            print_file_failure();
         }
         break;
     default:

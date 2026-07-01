@@ -91,7 +91,7 @@ Status create_index(FILE *dataFile, FILE *indexFile)
     int rrn = 0;
 
     fseek(dataFile, HEADER_SIZE, SEEK_SET);
-    while ((reg = read_register(dataFile)))
+    while ((reg = read_register(dataFile, SKIP_REMOVED)))
     {
         if (reg->removed != RECORD_REMOVED)
         {
@@ -229,7 +229,7 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
             {
                 // Go to its position using its byteOffset, read it and print it
                 fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredKeys[j]), SEEK_SET);
-                Register *printedRegister = read_register(dataFile);
+                Register *printedRegister = read_register(dataFile, SKIP_REMOVED);
 
                 print_register(printedRegister);
                 destroy_register(&printedRegister);
@@ -305,7 +305,7 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
 static void remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHeader *header, int rrn)
 {
     fseek(dataFile, HEADER_SIZE + (rrn * REGISTER_SIZE), SEEK_SET);
-    Register *reg = read_register(dataFile);
+    Register *reg = read_register(dataFile, SKIP_REMOVED);
     if (!reg)
         return;
 
@@ -382,7 +382,7 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
     }
 
     Register *sourceRegister = NULL;
-    while ((sourceRegister = read_register(sourceFile)))
+    while ((sourceRegister = read_register(sourceFile, SKIP_REMOVED)))
     {
         if (sourceRegister->removed == RECORD_REMOVED)
         {
@@ -394,7 +394,7 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
         if (byteOffset != -1)
         {
             fseek(joinFile, byteOffset, SEEK_SET);
-            Register *joinRegister = read_register(joinFile);
+            Register *joinRegister = read_register(joinFile, SKIP_REMOVED);
 
             if (joinRegister->removed == RECORD_ACTIVE)
             {

@@ -6,7 +6,9 @@
 
 // Header is in binFile/dataFile.c
 
-#define REGISTER_SIZE 80
+#define REGISTER_SIZE   80
+#define SKIP_REMOVED    0
+#define INCLUDE_REMOVED 1
 
 /**
  * @struct Register
@@ -84,11 +86,12 @@ void write_register(FILE *binFile, Register *data);
  * @brief Reads a single record from a binary file, turns it into a register struct
  *
  * @param binFile A pointer to the open binary file
- *
+ * @param readRemoved Flag that defines whether a removed register should be read or not.
+ * 
  * @return Register* to the dynamically allocated register or NULL if
  *  the end of the file is reached, a read error occurs or the allocation fails
  */
-Register *read_register(FILE *binFile);
+Register *read_register(FILE *binFile, int readRemoved);
 
 /**
  * @brief Prints a single Register

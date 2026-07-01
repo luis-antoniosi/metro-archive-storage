@@ -128,4 +128,6 @@ Status select_join(FILE *sourceFile, FILE *joinFile);
 
 Status order_by(FILE *regFile, char *field, FILE *orderedFile);
 
+Status select_join_order_by(FILE *sourceFile, FILE *joinFile);
+
 #endif

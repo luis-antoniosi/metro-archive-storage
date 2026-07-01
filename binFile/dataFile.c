@@ -91,7 +91,7 @@ Status update_data_header_count(FILE *dataFile)
     int numStations = 0, numPairStations = 0;
     Register *currentRegister = NULL;
 
-    while ((currentRegister = read_register(dataFile)))
+    while ((currentRegister = read_register(dataFile, SKIP_REMOVED)))
     {
         if (currentRegister->removed == RECORD_REMOVED)
         {
@@ -219,7 +219,7 @@ Status print_all_data(FILE *dataFile)
 
     Register *currentReg;
     int foundRegister = 0;
-    while ((currentReg = read_register(dataFile)))
+    while ((currentReg = read_register(dataFile, SKIP_REMOVED)))
     {
         if (currentReg->removed != RECORD_REMOVED)
         {
@@ -335,7 +335,7 @@ Status print_all_data_where(FILE *dataFile, int iterations)
             for (int j = 0; j < numFound; j++)
             {
                 fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET);
-                Register *printedRegister = read_register(dataFile);
+                Register *printedRegister = read_register(dataFile, SKIP_REMOVED);
 
                 print_register(printedRegister);
                 destroy_register(&printedRegister);
@@ -433,7 +433,7 @@ Status update_data_where(FILE *dataFile, int iterations)
             for (int j = 0; j < numFound; j++)
             {
                 fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET);
-                Register *updatedRegister = read_register(dataFile);
+                Register *updatedRegister = read_register(dataFile, SKIP_REMOVED);
 
                 update_register(dataFile, updatedRegister, updateFilters, updatePairIterations);
                 destroy_register(&updatedRegister);
@@ -458,7 +458,7 @@ Status select_join(FILE *sourceFile, FILE *joinFile)
         return FAILURE;
 
     Register *sourceRegister = NULL;
-    while ((sourceRegister = read_register(sourceFile)))
+    while ((sourceRegister = read_register(sourceFile, SKIP_REMOVED)))
     {
         if (sourceRegister->removed == RECORD_REMOVED)
         {
@@ -473,7 +473,7 @@ Status select_join(FILE *sourceFile, FILE *joinFile)
         }
 
         Register *joinRegister = NULL;
-        while ((joinRegister = read_register(joinFile)))
+        while ((joinRegister = read_register(joinFile, SKIP_REMOVED)))
         {
             if (joinRegister->removed == RECORD_ACTIVE &&
                 sourceRegister->nextStationCode == joinRegister->stationCode)
@@ -484,6 +484,9 @@ Status select_join(FILE *sourceFile, FILE *joinFile)
                        sourceRegister->lineName,
                        sourceRegister->nextStationCode,
                        joinRegister->stationName);
+
+                destroy_register(&joinRegister);
+                break;
             }
 
             destroy_register(&joinRegister);
@@ -517,7 +520,7 @@ static int compare_registers_next(const void *a, const void *b)
         return 1;
     if (regA->nextStationCode < regB->nextStationCode)
         return -1;
-    
+
     return 0;
 }
 
@@ -552,20 +555,15 @@ Status order_by(FILE *regFile, char *field, FILE *orderedFile)
 
     int idx = 0;
     Register *currentRegister = NULL;
-    while (idx < header->nextRRN && (currentRegister = read_register(regFile)))
-    {
-        if (currentRegister->removed == RECORD_ACTIVE)
-            savedRegisters[idx++] = currentRegister;
-        else
-            destroy_register(&currentRegister);
-    }
+    while (idx < header->nextRRN && (currentRegister = read_register(regFile, INCLUDE_REMOVED)))
+        savedRegisters[idx++] = currentRegister;
 
     // 0 = codEstacao, 1 = codProxEstacao
     int fieldValue = !strcmp(field, "codEstacao") ? 0 : 1;
 
     // if the field is codEstacao
     if (fieldValue == 0)
-        qsort(savedRegisters, idx, sizeof(Register *), compare_registers_station); 
+        qsort(savedRegisters, idx, sizeof(Register *), compare_registers_station);
     else
         qsort(savedRegisters, idx, sizeof(Register *), compare_registers_next);
 
@@ -586,6 +584,23 @@ Status order_by(FILE *regFile, char *field, FILE *orderedFile)
 
     free(header);
     free(savedRegisters);
+
+    return SUCCESS;
+}
+
+Status select_join_order_by(FILE *sourceFile, FILE *joinFile)
+{
+    if (!sourceFile || !joinFile)
+        return FAILURE;
+
+    if (order_by(sourceFile, "codProxEstacao", sourceFile) == FAILURE)
+        return FAILURE;
+
+    if (order_by(joinFile, "codEstacao", joinFile) == FAILURE)
+        return FAILURE;
+
+    if (select_join(sourceFile, joinFile) == FAILURE)
+        return FAILURE;
 
     return SUCCESS;
 }

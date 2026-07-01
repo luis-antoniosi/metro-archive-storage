@@ -39,7 +39,7 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
 {
     Register *currentRegister = NULL;
 
-    while ((currentRegister = read_register(binFile)))
+    while ((currentRegister = read_register(binFile, SKIP_REMOVED)))
     {
         // this loop skips any removed registers
         if (currentRegister->removed == RECORD_REMOVED)

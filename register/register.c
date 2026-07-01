@@ -128,7 +128,7 @@ void write_register(FILE *binFile, Register *data)
     }
 }
 
-Register *read_register(FILE *binFile)
+Register *read_register(FILE *binFile, int readRemoved)
 {
     //variable to count how many bytes read, instead of ftell
     int bytesRead = 0;
@@ -146,8 +146,8 @@ Register *read_register(FILE *binFile)
 
     bytesRead += sizeof(char);
 
-    // return the register as is if it is removed, seek to the next one. all functionalities check if it is removed beforehand.
-    if(currentRegister->removed == RECORD_REMOVED){
+    // return the register as is. if it is removed, seek to the next one. all functionalities check if it is removed beforehand.
+    if(currentRegister->removed == RECORD_REMOVED && !readRemoved){
         fseek(binFile, REGISTER_SIZE - bytesRead, SEEK_CUR);
         return currentRegister;
     }
