@@ -372,8 +372,14 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
         return FAILURE;
 
     IndexHeader *indexHeader = read_index_header(indexFile);
-    if (!indexHeader || indexHeader->status == STATUS_INCONSISTENT)
+    if (!indexHeader)
         return FAILURE;
+
+    if (indexHeader->status == STATUS_INCONSISTENT)
+    {
+        free(indexHeader);
+        return FAILURE;
+    }
 
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile)))
@@ -405,6 +411,8 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
 
         destroy_register(&sourceRegister);
     }
+
+    free(indexHeader);
 
     return SUCCESS;
 }

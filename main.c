@@ -35,7 +35,8 @@ typedef enum Option
     INSERT_WITH_INDEX,
     DELETE_WITH_INDEX,
     SELECT_JOIN,
-    SELECT_JOIN_INDEX
+    SELECT_JOIN_INDEX,
+    ORDER_BY
 } Option;
 
 static void print_file_failure()
@@ -334,6 +335,26 @@ int main()
             else
             {
                 CLOSE_FILES_FAILURE(sourceFile, joinFile, indexFile);
+            }
+        }
+        break;
+    case ORDER_BY:
+        // the variable for idxPath is bad, but I'll eventually fix it
+        if (sscanf(buffer, "%*d %s %s %s", filePath, idxPath, outputPath) == 3)
+        {
+            FILE *data = fopen(filePath, "rb");
+            FILE *ordered = fopen(outputPath, "wb");
+
+            if (data && ordered && order_by(data, idxPath, ordered) == SUCCESS)
+            {
+                fclose(data);
+                fclose(ordered);
+
+                binary_on_screen(outputPath);
+            }
+            else
+            {
+                CLOSE_FILES_FAILURE(data, ordered);
             }
         }
         break;

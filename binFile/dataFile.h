@@ -126,4 +126,6 @@ Status update_data_where(FILE *regFile, int iterations);
 
 Status select_join(FILE *sourceFile, FILE *joinFile);
 
+Status order_by(FILE *regFile, char *field, FILE *orderedFile);
+
 #endif

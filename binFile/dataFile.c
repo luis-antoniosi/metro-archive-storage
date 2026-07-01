@@ -478,12 +478,12 @@ Status select_join(FILE *sourceFile, FILE *joinFile)
             if (joinRegister->removed == RECORD_ACTIVE &&
                 sourceRegister->nextStationCode == joinRegister->stationCode)
             {
-                printf("%d %s %s %d %s\n", 
-                    sourceRegister->stationCode, 
-                    sourceRegister->stationName, 
-                    sourceRegister->lineName, 
-                    sourceRegister->nextStationCode, 
-                    joinRegister->stationName);
+                printf("%d %s %s %d %s\n",
+                       sourceRegister->stationCode,
+                       sourceRegister->stationName,
+                       sourceRegister->lineName,
+                       sourceRegister->nextStationCode,
+                       joinRegister->stationName);
             }
 
             destroy_register(&joinRegister);
@@ -491,6 +491,101 @@ Status select_join(FILE *sourceFile, FILE *joinFile)
 
         destroy_register(&sourceRegister);
     }
+
+    return SUCCESS;
+}
+
+static int compare_registers_station(const void *a, const void *b)
+{
+    Register *regA = *(Register **)a;
+    Register *regB = *(Register **)b;
+
+    if (regA->stationCode > regB->stationCode)
+        return 1;
+    if (regA->stationCode < regB->stationCode)
+        return -1;
+
+    return 0;
+}
+
+static int compare_registers_next(const void *a, const void *b)
+{
+    Register *regA = *(Register **)a;
+    Register *regB = *(Register **)b;
+
+    if (regA->nextStationCode > regB->nextStationCode)
+        return 1;
+    if (regA->nextStationCode < regB->nextStationCode)
+        return -1;
+    
+    return 0;
+}
+
+Status order_by(FILE *regFile, char *field, FILE *orderedFile)
+{
+    if (!regFile || !orderedFile)
+        return FAILURE;
+
+    DataHeader *header = read_data_header(regFile);
+    if (!header)
+        return FAILURE;
+
+    if (header->status == STATUS_INCONSISTENT)
+    {
+        free(header);
+        return FAILURE;
+    }
+
+    Register **savedRegisters = malloc(sizeof(Register *) * header->nextRRN);
+    if (!savedRegisters)
+    {
+        free(header);
+        return FAILURE;
+    }
+
+    if (fseek(regFile, HEADER_SIZE, SEEK_SET))
+    {
+        free(header);
+        free(savedRegisters);
+        return FAILURE;
+    }
+
+    int idx = 0;
+    Register *currentRegister = NULL;
+    while (idx < header->nextRRN && (currentRegister = read_register(regFile)))
+    {
+        if (currentRegister->removed == RECORD_ACTIVE)
+            savedRegisters[idx++] = currentRegister;
+        else
+            destroy_register(&currentRegister);
+    }
+
+    // 0 = codEstacao, 1 = codProxEstacao
+    int fieldValue = !strcmp(field, "codEstacao") ? 0 : 1;
+
+    // if the field is codEstacao
+    if (fieldValue == 0)
+        qsort(savedRegisters, idx, sizeof(Register *), compare_registers_station); 
+    else
+        qsort(savedRegisters, idx, sizeof(Register *), compare_registers_next);
+
+    if (write_data_header(orderedFile, header) == FAILURE)
+    {
+        for (int i = 0; i < idx; i++)
+            destroy_register(&savedRegisters[i]);
+        free(savedRegisters);
+        free(header);
+        return FAILURE;
+    }
+
+    for (int i = 0; i < idx; i++)
+    {
+        write_register(orderedFile, savedRegisters[i]);
+        destroy_register(&savedRegisters[i]);
+    }
+
+    free(header);
+    free(savedRegisters);
 
     return SUCCESS;
 }
