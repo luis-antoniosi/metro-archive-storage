@@ -80,6 +80,9 @@ Status create_index(FILE *dataFile, FILE *indexFile)
     if (!dataFile || !indexFile)
         return FAILURE;
 
+    if (check_header_consistency(dataFile) == FAILURE)
+        return FAILURE;
+
     IndexHeader *header = create_index_header();
     if (!header || (write_index_header(indexFile, header) == FAILURE))
     {
@@ -90,7 +93,12 @@ Status create_index(FILE *dataFile, FILE *indexFile)
     Register *reg = NULL;
     int rrn = 0;
 
-    fseek(dataFile, HEADER_SIZE, SEEK_SET);
+    if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
+    {
+        free(header);
+        return FAILURE;
+    }
+
     while ((reg = read_register(dataFile, SKIP_REMOVED)))
     {
         if (reg->removed != RECORD_REMOVED)
@@ -211,6 +219,10 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
     if (!dataFile || !indexFile)
         return FAILURE;
 
+    if (check_header_consistency(dataFile) == FAILURE ||
+        check_header_consistency(indexFile) == FAILURE)
+        return FAILURE;
+
     IndexHeader *indexHeader = read_index_header(indexFile);
     if (!indexHeader)
         return FAILURE;
@@ -228,7 +240,13 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
             for (int j = 0; j < numFound; j++)
             {
                 // Go to its position using its byteOffset, read it and print it
-                fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredKeys[j]), SEEK_SET);
+                if (fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredKeys[j]), SEEK_SET))
+                {
+                    free(filteredKeys);
+                    free(indexHeader);
+                    return FAILURE;
+                }
+
                 Register *printedRegister = read_register(dataFile, SKIP_REMOVED);
 
                 print_register(printedRegister);
@@ -252,6 +270,11 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
     if (!dataFile || !indexFile)
         return FAILURE;
 
+    if (check_header_consistency(dataFile) == FAILURE ||
+        check_header_consistency(indexFile) == FAILURE)
+        return FAILURE;
+
+    change_status(dataFile, STATUS_INCONSISTENT);
     change_status(indexFile, STATUS_INCONSISTENT);
 
     DataHeader *dataHeader = read_data_header(dataFile);
@@ -304,7 +327,9 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
 
 static void remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHeader *header, int rrn)
 {
-    fseek(dataFile, HEADER_SIZE + (rrn * REGISTER_SIZE), SEEK_SET);
+    if (fseek(dataFile, HEADER_SIZE + (rrn * REGISTER_SIZE), SEEK_SET))
+        return;
+    
     Register *reg = read_register(dataFile, SKIP_REMOVED);
     if (!reg)
         return;
@@ -317,6 +342,10 @@ static void remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHead
 Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
 {
     if (!dataFile || !indexFile)
+        return FAILURE;
+
+    if (check_header_consistency(dataFile) == FAILURE ||
+        check_header_consistency(indexFile) == FAILURE)
         return FAILURE;
 
     change_status(dataFile, STATUS_INCONSISTENT);
@@ -368,18 +397,17 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
     if (!sourceFile || !joinFile || !indexFile)
         return FAILURE;
 
+    if (check_header_consistency(sourceFile) == FAILURE ||
+        check_header_consistency(joinFile) == FAILURE ||
+        check_header_consistency(indexFile) == FAILURE)
+        return FAILURE;
+
     if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
         return FAILURE;
 
     IndexHeader *indexHeader = read_index_header(indexFile);
     if (!indexHeader)
         return FAILURE;
-
-    if (indexHeader->status == STATUS_INCONSISTENT)
-    {
-        free(indexHeader);
-        return FAILURE;
-    }
 
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile, SKIP_REMOVED)))
@@ -393,7 +421,13 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
         int byteOffset = search_index_key(indexFile, indexHeader, sourceRegister->nextStationCode);
         if (byteOffset != -1)
         {
-            fseek(joinFile, byteOffset, SEEK_SET);
+            if (fseek(joinFile, byteOffset, SEEK_SET))
+            {
+                destroy_register(&sourceRegister);
+                free(indexHeader);
+                return FAILURE;
+            }
+            
             Register *joinRegister = read_register(joinFile, SKIP_REMOVED);
 
             if (joinRegister->removed == RECORD_ACTIVE)

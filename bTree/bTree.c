@@ -31,7 +31,10 @@ Status write_index_page(FILE *indexFile, IndexPage *page, int rrn)
         return FAILURE;
 
     if (rrn != -1)
-        fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET);
+    {
+        if (fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET))
+            return FAILURE;
+    }
 
     fwrite(&page->removed, sizeof(char), 1, indexFile);
     fwrite(&page->next, sizeof(int), 1, indexFile);
@@ -58,7 +61,8 @@ IndexPage *read_index_page(FILE *indexFile, int rrn)
     if (!indexFile || !page)
         return NULL;
 
-    fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET);
+    if (fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET))
+        return NULL;
 
     if (fread(&page->removed, sizeof(char), 1, indexFile) != 1 ||
         fread(&page->next, sizeof(int), 1, indexFile) != 1 ||

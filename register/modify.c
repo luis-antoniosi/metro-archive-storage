@@ -85,7 +85,9 @@ Status insert_register(FILE *binFile, Register *data, DataHeader *header)
         insertOffset = header->top * REGISTER_SIZE;
         int nextTop = 0;
 
-        fseek(binFile, insertOffset + HEADER_SIZE + sizeof(char), SEEK_SET); // skipping "removed"
+        if (fseek(binFile, insertOffset + HEADER_SIZE + sizeof(char), SEEK_SET)) // skipping "removed"
+            return FAILURE;
+
         if (fread(&nextTop, sizeof(int), 1, binFile) != 1)
             return FAILURE;
 
@@ -97,8 +99,11 @@ Status insert_register(FILE *binFile, Register *data, DataHeader *header)
         header->nextRRN++;
     }
 
-    fseek(binFile, insertOffset + HEADER_SIZE, SEEK_SET);
-    write_register(binFile, data);
+    if (fseek(binFile, insertOffset + HEADER_SIZE, SEEK_SET))
+        return FAILURE;
+
+    if (write_register(binFile, data) == FAILURE)
+        return FAILURE;
 
     return SUCCESS;
 }
@@ -110,23 +115,28 @@ void remove_register(FILE *binFile, int removedRRN)
     char removed = '1';
 
     int registerStart = HEADER_SIZE + (REGISTER_SIZE * removedRRN);
-    fseek(binFile, registerStart, SEEK_SET);
+    if (fseek(binFile, registerStart, SEEK_SET))
+        return;
 
     // writes the removed flag
     fwrite(&removed, sizeof(char), 1, binFile);
 
     // seek top position and read value
-    fseek(binFile, sizeof(char), SEEK_SET);
+    if (fseek(binFile, sizeof(char), SEEK_SET))
+        return;
+        
     int topValue = 0;
     if (fread(&topValue, sizeof(int), 1, binFile) != 1)
         return;
 
     // write removed register byte offset in the header top field
-    fseek(binFile, sizeof(char), SEEK_SET);
+    if (fseek(binFile, sizeof(char), SEEK_SET))
+        return;
     fwrite(&removedRRN, sizeof(int), 1, binFile);
 
     // update the "next" field of the register to old top value
-    fseek(binFile, registerStart + sizeof(char), SEEK_SET);
+    if (fseek(binFile, registerStart + sizeof(char), SEEK_SET))
+        return;
     fwrite(&topValue, sizeof(int), 1, binFile);
 
     return;
@@ -219,8 +229,11 @@ Status update_register(FILE *binFile, Register *data, SearchField *filters, int 
     if (updateStatus == SUCCESS)
     {
         // writes updated register
-        fseek(binFile, -REGISTER_SIZE, SEEK_CUR);
-        write_register(binFile, data);
+        if (fseek(binFile, -REGISTER_SIZE, SEEK_CUR))
+            return FAILURE;
+
+        if (write_register(binFile, data) == FAILURE)
+            return FAILURE;
     }
 
     return SUCCESS;

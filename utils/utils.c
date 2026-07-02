@@ -4,7 +4,9 @@
 
 void change_status(FILE *dataFile, char status)
 {
-    fseek(dataFile, 0, SEEK_SET);
+    if (fseek(dataFile, 0, SEEK_SET))
+        return;
+
     fwrite(&status, sizeof(char), 1, dataFile);
     fflush(dataFile);
 }
@@ -16,10 +18,13 @@ void binary_on_screen(char *fileName)
     if (!fileName || !(dataFile = fopen(fileName, "rb")))
         return;
 
-    fseek(dataFile, 0, SEEK_END);
+    if (fseek(dataFile, 0, SEEK_END))
+        return;
     long totalBytes = ftell(dataFile);
 
-    fseek(dataFile, 0, SEEK_SET);
+    if (fseek(dataFile, 0, SEEK_SET))
+        return;
+        
     unsigned char *bytesStr = malloc(sizeof(unsigned char) * totalBytes);
     if (fread(bytesStr, 1, totalBytes, dataFile) != (long unsigned int)totalBytes)
     {
@@ -36,4 +41,21 @@ void binary_on_screen(char *fileName)
 
     free(bytesStr);
     fclose(dataFile);
+}
+
+Status check_header_consistency(FILE *binFile)
+{
+    if (!binFile)
+        return FAILURE;
+
+    if (fseek(binFile, 0, SEEK_SET))
+        return FAILURE;
+
+    char status;
+    if (fread(&status, sizeof(char), 1, binFile) != 1)
+        return FAILURE;
+    
+    rewind(binFile); // going back to start
+
+    return status == STATUS_CONSISTENT ? SUCCESS : FAILURE;
 }

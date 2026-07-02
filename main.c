@@ -11,8 +11,6 @@
 #include "binFile/dataFile.h"
 #include "binFile/indexFile.h"
 
-// TODO: should probably check if a file is consistent before updating/reading it..
-
 #define END_FILE (FILE *)-1
 #define CLOSE_FILES(...) close_files(__VA_ARGS__, END_FILE)
 #define CLOSE_FILES_FAILURE(...)            \

@@ -68,71 +68,68 @@ Register *parse_register(char *buffer)
     return currentRegister;
 }
 
-void write_register(FILE *binFile, Register *data)
+Status write_register(FILE *binFile, Register *data)
 {
-    //variable to count bytes written, instead of ftell
+    // variable to count bytes written, instead of ftell
     int bytesWritten = 0;
 
-    fwrite(&data->removed, sizeof(char), 1, binFile);
-    bytesWritten += sizeof(char);
+    if (fwrite(&data->removed, sizeof(char), 1, binFile) != 1 ||
+        fwrite(&data->next, sizeof(int), 1, binFile) != 1 ||
+        fwrite(&data->stationCode, sizeof(int), 1, binFile) != 1 ||
+        fwrite(&data->lineCode, sizeof(int), 1, binFile) != 1 ||
+        fwrite(&data->nextStationCode, sizeof(int), 1, binFile) != 1 ||
+        fwrite(&data->distNextStation, sizeof(int), 1, binFile) != 1 ||
+        fwrite(&data->codeIntegLine, sizeof(int), 1, binFile) != 1 ||
+        fwrite(&data->codeIntegStation, sizeof(int), 1, binFile) != 1)
+        return FAILURE;
 
-    fwrite(&data->next, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
+    bytesWritten = sizeof(char) + 7 * sizeof(int);
 
-    //write numeric fields with fixed size
-    fwrite(&data->stationCode, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
-    
-    fwrite(&data->lineCode, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
-
-    fwrite(&data->nextStationCode, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
-    
-    fwrite(&data->distNextStation, sizeof(int), 1, binFile);
+    if (fwrite(&data->sizeStationName, sizeof(int), 1, binFile) != 1)
+        return FAILURE;
     bytesWritten += sizeof(int);
 
-    fwrite(&data->codeIntegLine, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
-    
-    fwrite(&data->codeIntegStation, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
-
-    // write station name size and the station name itself
-    fwrite(&data->sizeStationName, sizeof(int), 1, binFile);
-    bytesWritten += sizeof(int);
     if (data->sizeStationName > 0)
     {
-        fwrite(data->stationName, data->sizeStationName, 1, binFile);
+        if (fwrite(data->stationName, data->sizeStationName, 1, binFile) != 1)
+            return FAILURE;
+
         bytesWritten += data->sizeStationName;
     }
 
     // writes line name size and the line name itself
-    fwrite(&data->sizeLineName, sizeof(int), 1, binFile);
+    if (fwrite(&data->sizeLineName, sizeof(int), 1, binFile) != 1)
+        return FAILURE;
     bytesWritten += sizeof(int);
+
     if (data->sizeLineName > 0)
     {
-        fwrite(data->lineName, data->sizeLineName, 1, binFile);
+        if (fwrite(data->lineName, data->sizeLineName, 1, binFile) != 1)
+            return FAILURE;
+
         bytesWritten += data->sizeLineName;
     }
 
-    //calculates remaining space and fills it with garbage ($)
+    // calculates remaining space and fills it with garbage ($)
     int remainingBytes = REGISTER_SIZE - bytesWritten;
     if (remainingBytes > 0)
     {
         char trash = TRASH;
         for (int i = 0; i < remainingBytes; i++)
         {
-            fwrite(&trash, sizeof(trash), 1, binFile);
+            if (fwrite(&trash, sizeof(trash), 1, binFile) != 1)
+                return FAILURE;
         }
     }
+
+    return SUCCESS;
 }
 
 Register *read_register(FILE *binFile, int readRemoved)
 {
-    //variable to count how many bytes read, instead of ftell
+    // variable to count how many bytes read, instead of ftell
     int bytesRead = 0;
-    
+
     Register *currentRegister = calloc(1, sizeof(Register));
     if (!currentRegister)
         return NULL;
@@ -147,12 +144,17 @@ Register *read_register(FILE *binFile, int readRemoved)
     bytesRead += sizeof(char);
 
     // return the register as is. if it is removed, seek to the next one. all functionalities check if it is removed beforehand.
-    if(currentRegister->removed == RECORD_REMOVED && !readRemoved){
-        fseek(binFile, REGISTER_SIZE - bytesRead, SEEK_CUR);
+    if (currentRegister->removed == RECORD_REMOVED && !readRemoved)
+    {
+        if (fseek(binFile, REGISTER_SIZE - bytesRead, SEEK_CUR))
+        {
+            free(currentRegister);
+            return NULL;
+        }
         return currentRegister;
     }
 
-    //if not removed, go on reading normally
+    // if not removed, go on reading normally
     if (fread(&currentRegister->next, sizeof(int), 1, binFile) != 1)
     {
         free(currentRegister);
@@ -203,7 +205,7 @@ Register *read_register(FILE *binFile, int readRemoved)
     }
     bytesRead += sizeof(int);
 
-    //read line's name
+    // read line's name
     if (currentRegister->sizeLineName > 0)
     {
         currentRegister->lineName = malloc(sizeof(char) * (currentRegister->sizeLineName + 1));
@@ -221,12 +223,18 @@ Register *read_register(FILE *binFile, int readRemoved)
     else
         currentRegister->lineName = NULL;
 
-    //instead of using ftell or fseek with SEEK_SET, we calculate how many bytes are remaining and 
-    //use relative fseek with SEEK_CUR foward
+    // instead of using ftell or fseek with SEEK_SET, we calculate how many bytes are remaining and
+    // use relative fseek with SEEK_CUR foward
     int remainingBytes = REGISTER_SIZE - bytesRead;
     if (remainingBytes > 0)
     {
-        fseek(binFile, remainingBytes, SEEK_CUR);
+        if (fseek(binFile, remainingBytes, SEEK_CUR))
+        {
+            free(currentRegister->stationName);
+            free(currentRegister->lineName);
+            free(currentRegister);
+            return NULL;
+        }
     }
 
     return currentRegister;

@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <stdio.h>
+#include <types.h>
 
 // Print binary
 /**
@@ -20,5 +21,7 @@ void binary_on_screen(char *fileName);
  * @param status Char for the status; STATUS_CONSISTENT ('1') or STATUS_INCONSISTENT ('0')
  */
 void change_status(FILE *binFile, char status);
+
+Status check_header_consistency(FILE *binFile);
 
 #endif

@@ -79,8 +79,10 @@ Register *parse_register(char *buffer);
  *
  * @param binFile A pointer to the open binary file
  * @param data A pointer to the struct to be written
+ * 
+ * @return SUCCESS or FAILURE 
  */
-void write_register(FILE *binFile, Register *data);
+Status write_register(FILE *binFile, Register *data);
 
 /**
  * @brief Reads a single record from a binary file, turns it into a register struct
