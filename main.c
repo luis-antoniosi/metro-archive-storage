@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <string.h>
-#include <stdarg.h>
+#include <stdarg.h> // used for close_files
 
 #include "types.h"
 #include "utils/utils.h"
@@ -11,11 +11,15 @@
 #include "binFile/dataFile.h"
 #include "binFile/indexFile.h"
 
-// TODO: update buff variables(?)
-// TODO: update if order (checking for function SUCCESS)
 // TODO: should probably check if a file is consistent before updating/reading it..
 
-#define CLOSE_FILES_FAILURE(...) close_files_in_failure(__VA_ARGS__, NULL)
+#define END_FILE (FILE *)-1
+#define CLOSE_FILES(...) close_files(__VA_ARGS__, END_FILE)
+#define CLOSE_FILES_FAILURE(...)            \
+    {                                       \
+        close_files(__VA_ARGS__, END_FILE); \
+        print_file_failure();               \
+    }
 
 /*
 Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
@@ -45,30 +49,30 @@ static void print_file_failure()
     printf("Falha no processamento do arquivo.\n");
 }
 
-static void close_files_in_failure(FILE *firstFile, ...)
+static void close_files(FILE *firstFile, ...)
 {
     va_list arg;
     va_start(arg, firstFile);
 
     FILE *currentFile = firstFile;
 
-    while (currentFile)
+    while (currentFile != END_FILE)
     {
-        fclose(currentFile);
-        currentFile = va_arg(arg, FILE*);
+        if (currentFile)
+            fclose(currentFile);
+
+        currentFile = va_arg(arg, FILE *);
     }
 
     va_end(arg);
-
-    print_file_failure();
 }
 
 int main()
 {
     setlocale(LC_ALL, ".UTF8"); // needed to print utf-8 characters like ç on console (not really needed after they fixed the test cases but nice to have)
 
-    char buffer[BUF_SIZE], filePath[BUF_SIZE], outputPath[BUF_SIZE], idxPath[BUF_SIZE];
-    int iterations = 0, option = -1;
+    char buffer[BUF_SIZE];
+    int option = -1;
 
     if (!fgets(buffer, BUF_SIZE, stdin))
         return 1;
@@ -82,314 +86,364 @@ int main()
     switch ((Option)option)
     {
     case CSV_TO_BIN:
-        if (sscanf(buffer, "%*d %s %s", filePath, outputPath) == 2) // %*d -> the * ignores the int
+    {
+        char csvPath[BUF_SIZE];
+        char binPath[BUF_SIZE];
+
+        if (sscanf(buffer, "%*d %s %s", csvPath, binPath) != 2) // %*d -> the * ignores the int
         {
-            FILE *csv = fopen(filePath, "r");
-            FILE *data = fopen(outputPath, "wb+"); // wb+ because the "update_header_count" function uses it
+            print_file_failure();
+            break;
+        }
 
-            if (csv && data && write_data_file(csv, data) == SUCCESS)
-            {
-                fclose(csv);
-                fclose(data);
+        FILE *csv = fopen(csvPath, "r");
+        FILE *data = fopen(binPath, "wb+"); // wb+ because the "update_header_count" function needs to write
 
-                binary_on_screen(outputPath);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(csv, data);
-            }
+        if (write_data_file(csv, data) == SUCCESS)
+        {
+            CLOSE_FILES(csv, data);
+
+            binary_on_screen(binPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(csv, data);
         }
 
         break;
+    }
     case PRINT_ALL:
-        if (sscanf(buffer, "%*d %s", filePath) == 1)
-        {
-            FILE *data = fopen(filePath, "rb");
+    {
+        char binPath[BUF_SIZE];
 
-            if (data && print_all_data(data) == SUCCESS)
-            {
-                fclose(data);
-            }
-            else
-            {
-                print_file_failure();
-            }
+        if (sscanf(buffer, "%*d %s", binPath) != 1)
+        {
+            print_file_failure();
+            break;
+        }
+
+        FILE *data = fopen(binPath, "rb");
+
+        if (print_all_data(data) == SUCCESS)
+        {
+            CLOSE_FILES(data);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data);
         }
 
         break;
+    }
     case PRINT_WHERE:
-        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
-        {
-            FILE *data = fopen(filePath, "rb");
+    {
+        char binPath[BUF_SIZE];
+        int iterations = 0;
 
-            if (data && print_all_data_where(data, iterations) == SUCCESS)
-            {
-                fclose(data);
-            }
-            else
-            {
-                print_file_failure();
-            }
+        if (sscanf(buffer, "%*d %s %d", binPath, &iterations) != 2)
+        {
+            print_file_failure();
+            break;
+        }
+
+        FILE *data = fopen(binPath, "rb");
+
+        if (print_all_data_where(data, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data);
         }
+
         break;
+    }
     case DELETE_WHERE:
-        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
+    {
+        char binPath[BUF_SIZE];
+        int iterations = 0;
+
+        if (sscanf(buffer, "%*d %s %d", binPath, &iterations) != 2)
         {
-            FILE *data = fopen(filePath, "rb+");
+            print_file_failure();
+            break;
+        }
 
-            if (data && delete_all_data_where(data, iterations) == SUCCESS)
-            {
-                fclose(data);
+        FILE *data = fopen(binPath, "rb+");
 
-                binary_on_screen(filePath);
-            }
-            else
-            {
-                print_file_failure();
-            }
+        if (delete_all_data_where(data, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data);
+
+            binary_on_screen(binPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data);
         }
+
         break;
+    }
     case INSERT:
-        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
+    {
+        char binPath[BUF_SIZE];
+        int iterations = 0;
+
+        if (sscanf(buffer, "%*d %s %d", binPath, &iterations) != 2)
         {
-            FILE *data = fopen(filePath, "rb+");
+            print_file_failure();
+            break;
+        }
 
-            if (data && insert_data(data, iterations) == SUCCESS)
-            {
-                fclose(data);
+        FILE *data = fopen(binPath, "rb+");
 
-                binary_on_screen(filePath);
-            }
-            else
-            {
-                print_file_failure();
-            }
+        if (insert_data(data, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data);
+
+            binary_on_screen(binPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data);
         }
+
         break;
+    }
     case UPDATE_WHERE:
-        if (sscanf(buffer, "%*d %s %d", filePath, &iterations) == 2)
+    {
+        char binPath[BUF_SIZE];
+        int iterations = 0;
+
+        if (sscanf(buffer, "%*d %s %d", binPath, &iterations) != 2)
         {
-            FILE *data = fopen(filePath, "rb+");
+            print_file_failure();
+            break;
+        }
 
-            if (data && update_data_where(data, iterations) == SUCCESS)
-            {
-                fclose(data);
+        FILE *data = fopen(binPath, "rb+");
 
-                binary_on_screen(filePath);
-            }
-            else
-            {
-                print_file_failure();
-            }
+        if (update_data_where(data, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data);
+
+            binary_on_screen(binPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data);
         }
+
         break;
+    }
     case CREATE_INDEX:
-        if (sscanf(buffer, "%*d %s %s", filePath, outputPath) == 2)
+    {
+        char binPath[BUF_SIZE], idxPath[BUF_SIZE];
+
+        if (sscanf(buffer, "%*d %s %s", binPath, idxPath) != 2)
         {
-            FILE *data = fopen(filePath, "rb");
-            FILE *index = fopen(outputPath, "wb+");
+            print_file_failure();
+            break;
+        }
 
-            if (data && index && create_index(data, index) == SUCCESS)
-            {
-                fclose(data);
-                fclose(index);
+        FILE *data = fopen(binPath, "rb");
+        FILE *index = fopen(idxPath, "wb+");
 
-                binary_on_screen(outputPath);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(data, index);
-            }
+        if (create_index(data, index) == SUCCESS)
+        {
+            CLOSE_FILES(data, index);
+
+            binary_on_screen(idxPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data, index);
         }
+
         break;
+    }
     case SEARCH_WITH_INDEX:
-        if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
-        {
-            FILE *data = fopen(filePath, "rb");
-            FILE *index = fopen(outputPath, "rb");
+    {
+        char binPath[BUF_SIZE], idxPath[BUF_SIZE];
+        int iterations = 0;
 
-            if (data && index && search_with_index(data, index, iterations) == SUCCESS)
-            {
-                fclose(data);
-                fclose(index);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(data, index);
-            }
+        if (sscanf(buffer, "%*d %s %s %d", binPath, idxPath, &iterations) != 3)
+        {
+            print_file_failure();
+            break;
+        }
+
+        FILE *data = fopen(binPath, "rb");
+        FILE *index = fopen(idxPath, "rb");
+
+        if (search_with_index(data, index, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data, index);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data, index);
         }
+
         break;
+    }
     case INSERT_WITH_INDEX:
-        if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
+    {
+        char binPath[BUF_SIZE], idxPath[BUF_SIZE];
+        int iterations = 0;
+
+        if (sscanf(buffer, "%*d %s %s %d", binPath, idxPath, &iterations) != 3)
         {
-            FILE *data = fopen(filePath, "rb+");
-            FILE *index = fopen(outputPath, "rb+");
+            print_file_failure();
+            break;
+        }
 
-            if (data && index && insert_index(data, index, iterations) == SUCCESS)
-            {
-                fclose(data);
-                fclose(index);
+        FILE *data = fopen(binPath, "rb+");
+        FILE *index = fopen(idxPath, "rb+");
 
-                binary_on_screen(filePath);
-                binary_on_screen(outputPath);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(data, index);
-            }
+        if (insert_index(data, index, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data, index);
+
+            binary_on_screen(binPath);
+            binary_on_screen(idxPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data, index);
         }
+
         break;
+    }
     case DELETE_WITH_INDEX:
-        if (sscanf(buffer, "%*d %s %s %d", filePath, outputPath, &iterations) == 3)
+    {
+        char binPath[BUF_SIZE], idxPath[BUF_SIZE];
+        int iterations = 0;
+
+        if (sscanf(buffer, "%*d %s %s %d", binPath, idxPath, &iterations) != 3)
         {
-            FILE *data = fopen(filePath, "rb+");
-            FILE *index = fopen(outputPath, "rb+");
+            print_file_failure();
+            break;
+        }
 
-            if (data && index && delete_index(data, index, iterations) == SUCCESS)
-            {
-                fclose(data);
-                fclose(index);
+        FILE *data = fopen(binPath, "rb+");
+        FILE *index = fopen(idxPath, "rb+");
 
-                binary_on_screen(filePath);
-                binary_on_screen(outputPath);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(data, index);
-            }
+        if (delete_index(data, index, iterations) == SUCCESS)
+        {
+            CLOSE_FILES(data, index);
+
+            binary_on_screen(binPath);
+            binary_on_screen(idxPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data, index);
         }
-        break;
+    }
+    break;
     case SELECT_JOIN:
-        if (sscanf(buffer, "%*d %s %*s %s %*s", filePath, outputPath) == 2)
-        {
-            FILE *sourceFile = fopen(filePath, "rb");
-            FILE *joinFile = fopen(outputPath, "rb");
+    {
+        char sourcePath[BUF_SIZE], joinPath[BUF_SIZE];
 
-            if (sourceFile && joinFile && select_join(sourceFile, joinFile) == SUCCESS)
-            {
-                fclose(sourceFile);
-                fclose(joinFile);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(sourceFile, joinFile);
-            }
+        if (sscanf(buffer, "%*d %s %*s %s %*s", sourcePath, joinPath) != 2)
+        {
+            print_file_failure();
+            break;
+        }
+
+        FILE *sourceFile = fopen(sourcePath, "rb");
+        FILE *joinFile = fopen(joinPath, "rb");
+
+        if (select_join(sourceFile, joinFile) == SUCCESS)
+        {
+            CLOSE_FILES(sourceFile, joinFile);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(sourceFile, joinFile);
         }
+
         break;
+    }
     case SELECT_JOIN_INDEX:
-        if (sscanf(buffer, "%*d %s %*s %s %*s %s", filePath, outputPath, idxPath) == 3)
-        {
-            FILE *sourceFile = fopen(filePath, "rb");
-            FILE *joinFile = fopen(outputPath, "rb");
-            FILE *indexFile = fopen(idxPath, "rb");
+    {
+        char sourcePath[BUF_SIZE], joinPath[BUF_SIZE], idxPath[BUF_SIZE];
 
-            if (sourceFile && joinFile && indexFile && select_join_index(sourceFile, joinFile, indexFile) == SUCCESS)
-            {
-                fclose(sourceFile);
-                fclose(joinFile);
-                fclose(indexFile);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(sourceFile, joinFile, indexFile);
-            }
+        if (sscanf(buffer, "%*d %s %*s %s %*s %s", sourcePath, joinPath, idxPath) != 3)
+        {
+            print_file_failure();
+            break;
+        }
+
+        FILE *sourceFile = fopen(sourcePath, "rb");
+        FILE *joinFile = fopen(joinPath, "rb");
+        FILE *indexFile = fopen(idxPath, "rb");
+
+        if (select_join_index(sourceFile, joinFile, indexFile) == SUCCESS)
+        {
+            CLOSE_FILES(sourceFile, joinFile, indexFile);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(sourceFile, joinFile, indexFile);
         }
+
         break;
+    }
     case ORDER_BY:
-        // the variable for idxPath is bad, but I'll eventually fix it
-        if (sscanf(buffer, "%*d %s %s %s", filePath, idxPath, outputPath) == 3)
+    {
+        char sourcePath[BUF_SIZE], orderedPath[BUF_SIZE], orderKey[BUF_SIZE];
+
+        if (sscanf(buffer, "%*d %s %s %s", sourcePath, orderKey, orderedPath) != 3)
         {
-            FILE *data = fopen(filePath, "rb");
-            FILE *ordered = fopen(outputPath, "wb");
+            print_file_failure();
+            break;
+        }
 
-            if (data && ordered && order_by(data, idxPath, ordered) == SUCCESS)
-            {
-                fclose(data);
-                fclose(ordered);
+        FILE *data = fopen(sourcePath, "rb");
+        FILE *ordered = fopen(orderedPath, "wb");
 
-                binary_on_screen(outputPath);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(data, ordered);
-            }
+        if (order_by(data, orderKey, ordered) == SUCCESS)
+        {
+            CLOSE_FILES(data, ordered);
+
+            binary_on_screen(orderedPath);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(data, ordered);
         }
+
         break;
+    }
     case SELECT_JOIN_ORDER_BY:
-        if (sscanf(buffer, "%*d %s %*s %s %*s", filePath, outputPath) == 2)
-        {
-            FILE *sourceFile = fopen(filePath, "rb+");
-            FILE *joinFile = fopen(outputPath, "rb+");
+    {
+        char sourcePath[BUF_SIZE], joinPath[BUF_SIZE];
 
-            if (sourceFile && joinFile && select_join_order_by(sourceFile, joinFile) == SUCCESS)
-            {
-                fclose(sourceFile);
-                fclose(joinFile);
-            }
-            else
-            {
-                CLOSE_FILES_FAILURE(sourceFile, joinFile);
-            }
+        if (sscanf(buffer, "%*d %s %*s %s %*s", sourcePath, joinPath) != 2)
+        {
+            print_file_failure();
+            break;
+        }
+
+        FILE *sourceFile = fopen(sourcePath, "rb+");
+        FILE *joinFile = fopen(joinPath, "rb+");
+
+        if (select_join_order_by(sourceFile, joinFile) == SUCCESS)
+        {
+            CLOSE_FILES(sourceFile, joinFile);
         }
         else
         {
-            print_file_failure();
+            CLOSE_FILES_FAILURE(sourceFile, joinFile);
         }
+
         break;
+    }
     default:
-        printf("Invalid option! The cases go from 1 to 6.\n");
+        printf("Invalid option! The cases go from 1 to 14.\n");
         break;
     }
 
