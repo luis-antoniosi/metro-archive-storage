@@ -76,18 +76,13 @@ int main()
             break;
         }
 
-        FILE *csv = fopen(csvPath, "r");
-        FILE *data = fopen(binPath, "wb+"); // wb+ because the "update_header_count" function needs to write
-
-        if (write_data_file(csv, data) == SUCCESS)
+        if (write_data_file(csvPath, binPath) == SUCCESS)
         {
-            CLOSE_FILES(csv, data);
-
             binary_on_screen(binPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(csv, data);
+            print_file_failure();
         }
 
         break;
@@ -102,15 +97,9 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb");
-
-        if (print_all_data(data) == SUCCESS)
+        if (print_all_data(binPath) == FAILURE)
         {
-            CLOSE_FILES(data);
-        }
-        else
-        {
-            CLOSE_FILES_FAILURE(data);
+            print_file_failure();
         }
 
         break;
@@ -126,15 +115,9 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb");
-
-        if (print_all_data_where(data, iterations) == SUCCESS)
+        if (print_all_data_where(binPath, iterations) == FAILURE)
         {
-            CLOSE_FILES(data);
-        }
-        else
-        {
-            CLOSE_FILES_FAILURE(data);
+            print_file_failure();
         }
 
         break;
@@ -150,17 +133,13 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb+");
-
-        if (delete_all_data_where(data, iterations) == SUCCESS)
+        if (delete_all_data_where(binPath, iterations) == SUCCESS)
         {
-            CLOSE_FILES(data);
-
             binary_on_screen(binPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data);
+            print_file_failure();
         }
 
         break;
@@ -176,17 +155,13 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb+");
-
-        if (insert_data(data, iterations) == SUCCESS)
+        if (insert_data(binPath, iterations) == SUCCESS)
         {
-            CLOSE_FILES(data);
-
             binary_on_screen(binPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data);
+            print_file_failure();
         }
 
         break;
@@ -202,17 +177,13 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb+");
-
-        if (update_data_where(data, iterations) == SUCCESS)
+        if (update_data_where(binPath, iterations) == SUCCESS)
         {
-            CLOSE_FILES(data);
-
             binary_on_screen(binPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data);
+            print_file_failure();
         }
 
         break;

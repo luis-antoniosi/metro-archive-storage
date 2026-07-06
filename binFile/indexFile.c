@@ -144,7 +144,7 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
 
     int pairIterations = 0;
     SearchField *filters = get_all_search_fields(&pairIterations);
-
+    
     if (!filters)
         return NULL;
 
@@ -171,10 +171,22 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
     {
         // use the index file to find the corresponding register, store its rrn in the array
         int byteOffset = search_index_key(indexFile, header, stationCode);
+
         if (byteOffset != -1)
         {
-            stationRRNList[*numFound] = (byteOffset - HEADER_SIZE) / REGISTER_SIZE;
-            (*numFound)++;
+            if (fseek(dataFile, byteOffset, SEEK_SET))
+            {
+                free(filters);
+                return NULL;
+            }
+
+            // check if the found register meets all filters
+            Register *filteredRegister = read_register(dataFile);
+            if (check_register_match(filteredRegister, filters, pairIterations) == SUCCESS)
+            {
+                stationRRNList[*numFound] = (byteOffset - HEADER_SIZE) / REGISTER_SIZE;
+                (*numFound)++;
+            }
         }
     }
     else

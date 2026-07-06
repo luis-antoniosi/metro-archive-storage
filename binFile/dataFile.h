@@ -66,67 +66,67 @@ Status update_data_header_count(FILE *regFile);
 /**
  * @brief Writes a binary file with registers from a input .csv file
  *
- * @param inputFile Open input .csv file in "r" mode
- * @param outputFile Open output binary file in "wb+" mode
+ * @param inputPath Path to the csv file
+ * @param outputPath Binary file's path which will be written to
  *
  * @return SUCCESS or FAILURE
  */
-Status write_data_file(FILE *inputFile, FILE *outputFile);
+Status write_data_file(char *inputPath, char *outputPath);
 
 // Print
 /**
  * @brief Prints all registers from a binary file
  *
- * @param regFile Open binary file
+ * @param dataPath Path to the binary file
  *
  * @return SUCCESS or FAILURE
  */
-Status print_all_data(FILE *regFile);
+Status print_all_data(char *dataPath);
 
 /**
  * @brief Prints all registers that meet the filters' values
  *
- * @param regFile Open binary file
+ * @param dataPath Path to the binary file
  * @param iterations Number of searches
  *
  * @return SUCCESS or FAILURE
  */
-Status print_all_data_where(FILE *regFile, int iterations);
+Status print_all_data_where(char *dataPath, int iterations);
 
 // Delete
 /**
  * @brief Deletes all registers that meet the filters' vlaues
  * 
- * @param regFile Open binary file
+ * @param dataPath Path to the binary file
  * @param iterations Number of filter iterations
  * 
  * @return SUCCESS or FAILURE
  */
-Status delete_all_data_where(FILE *regFile, int iterations);
+Status delete_all_data_where(char *dataPath, int iterations);
 
 /**
  * @brief Inserts multiple registers in a binary file
  * 
- * @param regFile Pointer to the open binary file
+ * @param dataPath Path to the binary file
  * @param iterations Number of insertions
  * 
  * @return SUCCESS or FAILURE
  */
-Status insert_data(FILE *regFile, int iterations);
+Status insert_data(char *dataPath, int iterations);
 
 /**
  * @brief Searches for registers that meet the filters' values, updates them
  * 
- * @param regFile Open binary file
+ * @param dataPath Path to the binary file
  * @param iterations Number of filter iterations
  * 
  * @return SUCCESS or FAILURE
  */
-Status update_data_where(FILE *regFile, int iterations);
+Status update_data_where(char *dataPath, int iterations);
 
 Status select_join(char *sourcePath, char *joinPath);
 
-Status order_by(char *regPath, char *field, char *orderedPath);
+Status order_by(char *dataPath, char *field, char *orderedPath);
 
 Status select_join_order_by(char *sourcePath, char *joinPath);
 

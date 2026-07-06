@@ -35,6 +35,20 @@ static int check_match(Register *data, SearchField field)
     return 0;
 }
 
+Status check_register_match(Register *data, SearchField *filters, int iterations)
+{
+    if (!data)
+        return FAILURE;
+    
+    for (int i = 0; i < iterations; i++)
+    {
+        if (!check_match(data, filters[i]))
+            return FAILURE;
+    }
+
+    return SUCCESS;
+}
+
 Register *check_register_field_search(FILE *binFile, SearchField *filters, int pairIterations, int *currentRRN)
 {
     Register *currentRegister = NULL;
@@ -51,17 +65,7 @@ Register *check_register_field_search(FILE *binFile, SearchField *filters, int p
             continue;
         }
 
-        int match = 1;
-        for (int i = 0; i < pairIterations; i++)
-        {
-            if (!check_match(currentRegister, filters[i]))
-            {
-                match = 0;
-                break;
-            }
-        }
-
-        if (match)
+        if (check_register_match(currentRegister, filters, pairIterations) == SUCCESS)
             return currentRegister;
 
         destroy_register(&currentRegister);

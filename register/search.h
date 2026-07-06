@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "register.h"
 
+Status check_register_match(Register *data, SearchField *filters, int iterations);
+
 /**
  * @brief Reads a Register from a file and evaluates if it meets all the search filters
  *

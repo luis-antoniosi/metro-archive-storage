@@ -73,23 +73,23 @@ DataHeader *read_data_header(FILE *dataFile)
 
 Status update_data_header_count(FILE *dataFile)
 {
+    if (!dataFile)
+        return FAILURE;
+
     DataHeader *header = read_data_header(dataFile);
     if (!header)
         return FAILURE;
 
+    Status status = FAILURE;
+
     char **seenStations = malloc(EXPECTED_SIZE * sizeof(char *));
     StationPair *seenPairs = malloc(EXPECTED_SIZE * sizeof(StationPair));
-
-    if (!seenStations || !seenPairs || !header)
-    {
-        free(seenStations);
-        free(seenPairs);
-        return FAILURE;
-    }
-
     int numStations = 0, numPairStations = 0;
-    Register *currentRegister = NULL;
 
+    if (!seenStations || !seenPairs)
+        goto cleanup;
+
+    Register *currentRegister = NULL;
     while ((currentRegister = read_register(dataFile)))
     {
         if (currentRegister->removed == RECORD_REMOVED)
@@ -146,40 +146,51 @@ Status update_data_header_count(FILE *dataFile)
     header->numStations = numStations;
     header->numPairStations = numPairStations;
 
-    for (int i = 0; i < numStations; i++)
-        free(seenStations[i]);
-    free(seenStations);
-    free(seenPairs);
-
     if (write_data_header(dataFile, header) == FAILURE)
-        return FAILURE;
+        goto cleanup;
 
+    status = SUCCESS;
+
+cleanup:
+    if (seenStations)
+    {
+        for (int i = 0; i < numStations; i++)
+            free(seenStations[i]);
+        free(seenStations);
+    }
+    free(seenPairs);
     free(header);
 
-    return SUCCESS;
+    return status;
 }
 
 // File Functions
 
-Status write_data_file(FILE *inputFile, FILE *outputFile)
+Status write_data_file(char *inputPath, char *outputPath)
 {
-    if (!inputFile || !outputFile)
+    if (!inputPath || !outputPath)
         return FAILURE;
 
-    change_status(outputFile, STATUS_INCONSISTENT);
-
+    FILE *csvFile = fopen(inputPath, "r");
+    FILE *binFile = fopen(outputPath, "wb+"); // wb+ because the "update_header_count" function needs to write
     DataHeader *fileHeader = create_data_header();
+
+    Status status = FAILURE;
+
+    if (!csvFile || !binFile || !fileHeader)
+        goto cleanup;
+
+    change_status(binFile, STATUS_INCONSISTENT);
+
     char buffer[BUF_SIZE]; // BUF_SIZE from types.h
     int numData = 0;
 
-    // essentially this if does three different things, but i didnt want to write 3 different ifs
-    if (!fileHeader || write_data_header(outputFile, fileHeader) || !fgets(buffer, BUF_SIZE, inputFile))
-    {
-        free(fileHeader);
-        return FAILURE;
-    }
+    // two different things; write_data_header and skip the column definition of the csv
+    if (write_data_header(binFile, fileHeader) == FAILURE ||
+        !fgets(buffer, BUF_SIZE, csvFile))
+        goto cleanup;
 
-    while (fgets(buffer, sizeof(buffer), inputFile))
+    while (fgets(buffer, sizeof(buffer), csvFile))
     {
         Register *newRegister = parse_register(buffer);
         if (!newRegister)
@@ -188,10 +199,10 @@ Status write_data_file(FILE *inputFile, FILE *outputFile)
         newRegister->removed = RECORD_ACTIVE;
         newRegister->next = -1;
 
-        if (write_register(outputFile, newRegister) == FAILURE)
+        if (write_register(binFile, newRegister) == FAILURE)
         {
-            free(fileHeader);
-            return FAILURE;
+            destroy_register(&newRegister);
+            goto cleanup;
         }
 
         numData++;
@@ -201,28 +212,37 @@ Status write_data_file(FILE *inputFile, FILE *outputFile)
 
     fileHeader->nextRRN = numData;
 
-    write_data_header(outputFile, fileHeader);
-    free(fileHeader);
+    if (write_data_header(binFile, fileHeader) == FAILURE)
+        goto cleanup;
 
     // could pass the fileHeader to it, but I prefered to make the function read the header by itself
-    if (update_data_header_count(outputFile) == FAILURE)
-        return FAILURE;
+    if (update_data_header_count(binFile) == FAILURE)
+        goto cleanup;
 
-    change_status(outputFile, STATUS_CONSISTENT);
+    change_status(binFile, STATUS_CONSISTENT);
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup:
+    CLOSE_FILES(csvFile, binFile);
+    free(fileHeader);
+
+    return status;
 }
 
-Status print_all_data(FILE *dataFile)
+Status print_all_data(char *dataPath)
 {
-    if (!dataFile)
+    if (!dataPath)
         return FAILURE;
 
-    if (check_header_consistency(dataFile) == FAILURE)
-        return FAILURE;
+    FILE *dataFile = fopen(dataPath, "rb");
+    Status status = FAILURE;
+
+    if (!dataFile || check_header_consistency(dataFile) == FAILURE)
+        goto cleanup;
 
     if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
-        return FAILURE;
+        goto cleanup;
 
     Register *currentReg;
     int foundRegister = 0;
@@ -240,7 +260,12 @@ Status print_all_data(FILE *dataFile)
     if (!foundRegister)
         printf("Registro inexistente.");
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup:
+    CLOSE_FILES(dataFile);
+
+    return status;
 }
 
 // Helper function used in print_all_data_where, delete_all_data_where and update_data_where
@@ -284,11 +309,7 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
         stationRRNList = calloc(capacity, sizeof(int));
 
     if (!stationRRNList)
-    {
-        free(filters);
-        free(stationRRNList);
-        return NULL;
-    }
+        goto cleanup_list;
 
     Register *filteredRegister = NULL;
     int currentRRN = 0;
@@ -299,7 +320,13 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
         if (*numFound >= capacity)
         {
             capacity *= 2;
-            stationRRNList = realloc(stationRRNList, capacity * sizeof(int));
+
+            // temporary list to check if realloc fails
+            int *tmpList = realloc(stationRRNList, capacity * sizeof(int));
+            if (!tmpList)
+                goto cleanup_list;
+
+            stationRRNList = tmpList;
         }
 
         stationRRNList[*numFound] = currentRRN;
@@ -315,42 +342,47 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
 
     // if no matching registers were found, return NULL
     if ((*numFound) == 0)
-    {
-        free(filters);
-        free(stationRRNList);
-        return NULL;
-    }
+        goto cleanup_list;
 
     free(filters);
 
     // caller needs to free it
     return stationRRNList;
+
+cleanup_list:
+    free(stationRRNList);
+    free(filters);
+
+    return NULL;
 }
 
-Status print_all_data_where(FILE *dataFile, int iterations)
+Status print_all_data_where(char *dataPath, int iterations)
 {
-    if (!dataFile)
+    if (!dataPath)
         return FAILURE;
 
-    if (check_header_consistency(dataFile) == FAILURE)
-        return FAILURE;
+    FILE *dataFile = fopen(dataPath, "rb");
+    Status status = FAILURE;
 
+    if (!dataFile || check_header_consistency(dataFile) == FAILURE)
+        goto cleanup;
+
+    int *filteredRRNs = NULL;
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredRRNs = filter_data_rrn(dataFile, &numFound);
+        filteredRRNs = filter_data_rrn(dataFile, &numFound);
 
         if (filteredRRNs)
         {
             for (int j = 0; j < numFound; j++)
             {
                 if (fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET))
-                {
-                    free(filteredRRNs);
-                    return FAILURE;
-                }
+                    goto cleanup_filtered;
 
                 Register *printedRegister = read_register(dataFile);
+                if (!printedRegister)
+                    goto cleanup_filtered;
 
                 print_register(printedRegister);
                 destroy_register(&printedRegister);
@@ -361,62 +393,86 @@ Status print_all_data_where(FILE *dataFile, int iterations)
 
         printf("\n");
         free(filteredRRNs);
+        filteredRRNs = NULL;
     }
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup_filtered:
+    free(filteredRRNs);
+cleanup:
+    CLOSE_FILES(dataFile);
+
+    return status;
 }
 
-Status delete_all_data_where(FILE *dataFile, int iterations)
+Status delete_all_data_where(char *dataPath, int iterations)
 {
-    if (!dataFile)
+    if (!dataPath)
         return FAILURE;
 
-    if (check_header_consistency(dataFile) == FAILURE)
-        return FAILURE;
+    FILE *dataFile = fopen(dataPath, "rb+");
+    Status status = FAILURE;
+
+    if (!dataFile || check_header_consistency(dataFile) == FAILURE)
+        goto cleanup;
 
     change_status(dataFile, STATUS_INCONSISTENT);
 
+    int *filteredRRNs = NULL;
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredRRNs = filter_data_rrn(dataFile, &numFound);
+        filteredRRNs = filter_data_rrn(dataFile, &numFound);
 
         if (filteredRRNs)
         {
             for (int j = 0; j < numFound; j++)
             {
-
                 if (remove_register(dataFile, filteredRRNs[j]) == FAILURE)
-                {
-                    free(filteredRRNs);
-                    return FAILURE;
-                }
+                    goto cleanup_filtered;
             }
         }
 
         free(filteredRRNs);
+        filteredRRNs = NULL;
     }
 
     if (update_data_header_count(dataFile) == FAILURE)
-        return FAILURE;
+        goto cleanup;
 
     change_status(dataFile, STATUS_CONSISTENT);
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup_filtered:
+    free(filteredRRNs);
+cleanup:
+    CLOSE_FILES(dataFile);
+
+    return status;
 }
 
-Status insert_data(FILE *dataFile, int iterations)
+Status insert_data(char *dataPath, int iterations)
 {
+    if (!dataPath)
+        return FAILURE;
+
+    FILE *dataFile = fopen(dataPath, "rb+");
+    Status status = FAILURE;
+
     if (!dataFile)
         return FAILURE;
 
     if (check_header_consistency(dataFile) == FAILURE)
-        return FAILURE;
+        goto cleanup;
 
-    change_status(dataFile, STATUS_INCONSISTENT);
     DataHeader *header = read_data_header(dataFile);
     if (!header)
-        return FAILURE;
+        goto cleanup_header;
+
+    change_status(dataFile, STATUS_INCONSISTENT);
+    header->status = STATUS_INCONSISTENT;
 
     for (int i = 0; i < iterations; i++)
     {
@@ -430,60 +486,85 @@ Status insert_data(FILE *dataFile, int iterations)
     }
 
     write_data_header(dataFile, header);
-    free(header);
 
     if (update_data_header_count(dataFile) == FAILURE)
-        return FAILURE;
+        goto cleanup_header;
 
     change_status(dataFile, STATUS_CONSISTENT);
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup_header:
+    free(header);
+cleanup:
+    CLOSE_FILES(dataFile);
+
+    return status;
 }
 
-Status update_data_where(FILE *dataFile, int iterations)
+Status update_data_where(char *dataPath, int iterations)
 {
-    if (!dataFile)
+    if (!dataPath)
         return FAILURE;
 
-    if (check_header_consistency(dataFile) == FAILURE)
-        return FAILURE;
+    FILE *dataFile = fopen(dataPath, "rb+");
+    Status status = FAILURE;
+
+    if (!dataFile || check_header_consistency(dataFile) == FAILURE)
+        goto cleanup;
 
     change_status(dataFile, STATUS_INCONSISTENT);
 
+    Register *updatedRegister = NULL;
+    int *filteredRRNs = NULL;
+    SearchField *updateFilters = NULL;
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredRRNs = filter_data_rrn(dataFile, &numFound);
+        filteredRRNs = filter_data_rrn(dataFile, &numFound);
 
         // not really a search field in this case, but can be repurposed.
         int updatePairIterations = 0;
-        SearchField *updateFilters = get_all_search_fields(&updatePairIterations);
+        updateFilters = get_all_search_fields(&updatePairIterations);
 
-        if (filteredRRNs)
+        if (filteredRRNs && updateFilters)
         {
             for (int j = 0; j < numFound; j++)
             {
                 if (fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredRRNs[j]), SEEK_SET))
-                {
-                    free(filteredRRNs);
-                    free(updateFilters);
-                    return FAILURE;
-                }
+                    goto cleanup_loop;
 
-                Register *updatedRegister = read_register(dataFile);
+                updatedRegister = read_register(dataFile);
+                if (!updatedRegister)
+                    goto cleanup_loop;
 
-                update_register(dataFile, updatedRegister, updateFilters, updatePairIterations);
+                if (update_register(dataFile, updatedRegister, updateFilters, updatePairIterations) == FAILURE)
+                    goto cleanup_loop;
+
                 destroy_register(&updatedRegister);
+                updatedRegister = NULL;
             }
         }
 
         free(filteredRRNs);
         free(updateFilters);
+        filteredRRNs = NULL;
+        updateFilters = NULL;
     }
 
     change_status(dataFile, STATUS_CONSISTENT);
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup_loop:
+    if (updatedRegister)
+        destroy_register(&updatedRegister);
+    free(filteredRRNs);
+    free(updateFilters);
+cleanup:
+    CLOSE_FILES(dataFile);
+
+    return status;
 }
 
 Status select_join(char *sourcePath, char *joinPath)
@@ -493,25 +574,17 @@ Status select_join(char *sourcePath, char *joinPath)
 
     FILE *sourceFile = fopen(sourcePath, "rb");
     FILE *joinFile = fopen(joinPath, "rb");
+    Status status = FAILURE;
 
     if (!sourceFile || !joinFile)
-    {
-        CLOSE_FILES(sourceFile, joinFile);
-        return FAILURE;
-    }
+        goto cleanup;
 
     if (check_header_consistency(sourceFile) == FAILURE ||
         check_header_consistency(joinFile) == FAILURE)
-    {
-        CLOSE_FILES(sourceFile, joinFile);
-        return FAILURE;
-    }
+        goto cleanup;
 
     if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
-    {
-        CLOSE_FILES(sourceFile, joinFile);
-        return FAILURE;
-    }
+        goto cleanup;
 
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile)))
@@ -525,8 +598,7 @@ Status select_join(char *sourcePath, char *joinPath)
         if (fseek(joinFile, HEADER_SIZE, SEEK_SET))
         {
             destroy_register(&sourceRegister);
-            CLOSE_FILES(sourceFile, joinFile);
-            return FAILURE;
+            goto cleanup;
         }
 
         Register *joinRegister = NULL;
@@ -552,8 +624,12 @@ Status select_join(char *sourcePath, char *joinPath)
         destroy_register(&sourceRegister);
     }
 
+    status = SUCCESS;
+
+cleanup:
     CLOSE_FILES(sourceFile, joinFile);
-    return SUCCESS;
+
+    return status;
 }
 
 static int compare_registers_station(const void *a, const void *b)
@@ -582,48 +658,34 @@ static int compare_registers_next(const void *a, const void *b)
     return 0;
 }
 
-Status order_by(char *regPath, char *field, char *orderedPath)
+Status order_by(char *dataPath, char *field, char *orderedPath)
 {
-    if (!regPath || !field || !orderedPath)
+    if (!dataPath || !field || !orderedPath)
         return FAILURE;
 
-    FILE *regFile = fopen(regPath, "rb");
+    FILE *dataFile = fopen(dataPath, "rb");
+    Status status = FAILURE;
+    int idx = 0;
 
-    if (!regFile)
+    if (!dataFile)
         return FAILURE;
 
-    if (check_header_consistency(regFile) == FAILURE)
-    {
-        fclose(regFile);
-        return FAILURE;
-    }
+    if (check_header_consistency(dataFile) == FAILURE)
+        goto cleanup_data_file;
 
-    DataHeader *header = read_data_header(regFile);
+    DataHeader *header = read_data_header(dataFile);
     if (!header)
-    {
-        fclose(regFile);
-        return FAILURE;
-    }
+        goto cleanup_data_file;
 
     Register **savedRegisters = malloc(sizeof(Register *) * header->nextRRN);
     if (!savedRegisters)
-    {
-        free(header);
-        fclose(regFile);
-        return FAILURE;
-    }
+        goto cleanup_header;
 
-    if (fseek(regFile, HEADER_SIZE, SEEK_SET))
-    {
-        free(header);
-        free(savedRegisters);
-        fclose(regFile);
-        return FAILURE;
-    }
+    if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
+        goto cleanup_registers;
 
-    int idx = 0;
     Register *currentRegister = NULL;
-    while (idx < header->nextRRN && (currentRegister = read_register(regFile)))
+    while (idx < header->nextRRN && (currentRegister = read_register(dataFile)))
     {
         if (currentRegister->removed == RECORD_REMOVED)
         {
@@ -634,7 +696,8 @@ Status order_by(char *regPath, char *field, char *orderedPath)
         savedRegisters[idx++] = currentRegister;
     }
 
-    fclose(regFile);
+    fclose(dataFile);
+    dataFile = NULL;
 
     // 0 = codEstacao, 1 = codProxEstacao
     int fieldValue = !strcmp(field, "codEstacao") ? 0 : 1;
@@ -647,29 +710,19 @@ Status order_by(char *regPath, char *field, char *orderedPath)
 
     FILE *orderedFile = fopen(orderedPath, "wb");
 
+    if (!orderedFile)
+        goto cleanup_registers;
+
     if (fseek(orderedFile, HEADER_SIZE, SEEK_SET))
-    {
-        for (int i = 0; i < idx; i++)
-            destroy_register(&savedRegisters[i]);
-        free(savedRegisters);
-        free(header);
-        fclose(orderedFile);
-        return FAILURE;
-    }
+        goto cleanup_ordered_file;
 
     for (int i = 0; i < idx; i++)
     {
         if (write_register(orderedFile, savedRegisters[i]) == FAILURE)
-        {
-            for (int j = i; j < idx; j++)
-                destroy_register(&savedRegisters[j]);
-            free(savedRegisters);
-            free(header);
-            fclose(orderedFile);
-            return FAILURE;
-        }
+            goto cleanup_ordered_file;
 
         destroy_register(&savedRegisters[i]);
+        savedRegisters[i] = NULL;
     }
 
     header->status = STATUS_INCONSISTENT;
@@ -677,21 +730,26 @@ Status order_by(char *regPath, char *field, char *orderedPath)
     header->nextRRN = idx;
 
     if (write_data_header(orderedFile, header) == FAILURE)
-    {
-        free(savedRegisters);
-        free(header);
-        fclose(orderedFile);
-        return FAILURE;
-    }
+        goto cleanup_ordered_file;
 
     change_status(orderedFile, STATUS_CONSISTENT);
 
-    fclose(orderedFile);
+    status = SUCCESS;
+
+cleanup_ordered_file:
+    CLOSE_FILES(orderedFile);
+cleanup_registers:
+    for (int i = 0; i < idx; i++)
+        if (savedRegisters[i])
+            destroy_register(&savedRegisters[i]);
 
     free(savedRegisters);
+cleanup_header:
     free(header);
+cleanup_data_file:
+    CLOSE_FILES(dataFile);
 
-    return SUCCESS;
+    return status;
 }
 
 Status select_join_order_by(char *sourcePath, char *joinPath)
