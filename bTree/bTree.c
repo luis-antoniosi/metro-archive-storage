@@ -13,7 +13,7 @@ IndexPage *create_index_page()
     page->removed = RECORD_ACTIVE;
     page->next = -1;
     page->nodeType = LEAF;
-    page->keyCount = 1;
+    page->keyCount = 0;
 
     for (int i = 0; i < TREE_ORDER - 1; i++)
         page->keys[i] = (IndexKey){-1, -1}; // placeholder key for initializing the page
@@ -36,20 +36,23 @@ Status write_index_page(FILE *indexFile, IndexPage *page, int rrn)
             return FAILURE;
     }
 
-    fwrite(&page->removed, sizeof(char), 1, indexFile);
-    fwrite(&page->next, sizeof(int), 1, indexFile);
-    fwrite(&page->nodeType, sizeof(int), 1, indexFile);
-    fwrite(&page->keyCount, sizeof(int), 1, indexFile);
+    if (fwrite(&page->removed, sizeof(char), 1, indexFile) != 1 ||
+        fwrite(&page->next, sizeof(int), 1, indexFile) != 1 ||
+        fwrite(&page->nodeType, sizeof(int), 1, indexFile) != 1 ||
+        fwrite(&page->keyCount, sizeof(int), 1, indexFile) != 1)
+        return FAILURE;
 
     for (int i = 0; i < TREE_ORDER - 1; i++)
     {
-        fwrite(&page->keys[i].searchKey, sizeof(int), 1, indexFile);
-        fwrite(&page->keys[i].byteOffset, sizeof(int), 1, indexFile);
+        if (fwrite(&page->keys[i].searchKey, sizeof(int), 1, indexFile) != 1 ||
+            fwrite(&page->keys[i].byteOffset, sizeof(int), 1, indexFile) != 1)
+            return FAILURE;
     }
 
     for (int i = 0; i < TREE_ORDER; i++)
     {
-        fwrite(&page->subPages[i], sizeof(int), 1, indexFile);
+        if (fwrite(&page->subPages[i], sizeof(int), 1, indexFile) != 1)
+            return FAILURE;
     }
 
     return SUCCESS;
@@ -120,7 +123,7 @@ int binary_index_search(IndexPage *page, int searchKey)
 
 /**
  * @brief Recursively searches through the b-tree in indexFile to find the searchkey
- * 
+ *
  * @param indexFile Index file with all the indices
  * @param currentRRN RRN of the page that's currently being searched.
  * @param searchKey Key to be searched
@@ -154,7 +157,7 @@ static int search_recursive(FILE *indexFile, int currentRRN, int searchKey)
         return -1;
     }
 
-    // doing -result - 1 from binary_index_search gives us the subPage where the searchKey will be, if it exists 
+    // doing -result - 1 from binary_index_search gives us the subPage where the searchKey will be, if it exists
     int childRRN = page->subPages[-result - 1];
     free(page);
 

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include "utils.h"
 
 void change_status(FILE *dataFile, char status)
@@ -7,7 +8,9 @@ void change_status(FILE *dataFile, char status)
     if (fseek(dataFile, 0, SEEK_SET))
         return;
 
-    fwrite(&status, sizeof(char), 1, dataFile);
+    if (fwrite(&status, sizeof(char), 1, dataFile) != 1)
+        return;
+
     fflush(dataFile);
 }
 
@@ -54,8 +57,24 @@ Status check_header_consistency(FILE *binFile)
     char status;
     if (fread(&status, sizeof(char), 1, binFile) != 1)
         return FAILURE;
-    
-    rewind(binFile); // going back to start
 
     return status == STATUS_CONSISTENT ? SUCCESS : FAILURE;
+}
+
+void close_files(FILE *firstFile, ...)
+{
+    va_list arg;
+    va_start(arg, firstFile);
+
+    FILE *currentFile = firstFile;
+
+    while (currentFile != END_FILE)
+    {
+        if (currentFile)
+            fclose(currentFile);
+
+        currentFile = va_arg(arg, FILE *);
+    }
+
+    va_end(arg);
 }

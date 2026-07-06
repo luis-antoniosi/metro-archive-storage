@@ -1,5 +1,5 @@
-#ifndef BINFILE_H
-#define BINFILE_H
+#ifndef DATA_FILE_H
+#define DATA_FILE_H
 
 #include <stdio.h>
 #include "types.h"
@@ -124,10 +124,10 @@ Status insert_data(FILE *regFile, int iterations);
  */
 Status update_data_where(FILE *regFile, int iterations);
 
-Status select_join(FILE *sourceFile, FILE *joinFile);
+Status select_join(char *sourcePath, char *joinPath);
 
-Status order_by(FILE *regFile, char *field, FILE *orderedFile);
+Status order_by(char *regPath, char *field, char *orderedPath);
 
-Status select_join_order_by(FILE *sourceFile, FILE *joinFile);
+Status select_join_order_by(char *sourcePath, char *joinPath);
 
 #endif

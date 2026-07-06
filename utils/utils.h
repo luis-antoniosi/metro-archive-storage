@@ -2,7 +2,15 @@
 #define UTILS_H
 
 #include <stdio.h>
-#include <types.h>
+#include "types.h"
+
+#define END_FILE (FILE *)-1
+#define CLOSE_FILES(...) close_files(__VA_ARGS__, END_FILE)
+#define CLOSE_FILES_FAILURE(...)            \
+    {                                       \
+        close_files(__VA_ARGS__, END_FILE); \
+        print_file_failure();               \
+    }
 
 // Print binary
 /**
@@ -22,6 +30,20 @@ void binary_on_screen(char *fileName);
  */
 void change_status(FILE *binFile, char status);
 
+/**
+ * @brief 
+ * 
+ * @param binFile 
+ * @return Status 
+ */
 Status check_header_consistency(FILE *binFile);
+
+/**
+ * @brief 
+ * 
+ * @param firstFile 
+ * @param ... 
+ */
+void close_files(FILE *firstFile, ...);
 
 #endif

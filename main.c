@@ -11,13 +11,13 @@
 #include "binFile/dataFile.h"
 #include "binFile/indexFile.h"
 
-#define END_FILE (FILE *)-1
-#define CLOSE_FILES(...) close_files(__VA_ARGS__, END_FILE)
 #define CLOSE_FILES_FAILURE(...)            \
     {                                       \
         close_files(__VA_ARGS__, END_FILE); \
         print_file_failure();               \
     }
+
+// TODO: maybe add gotos
 
 /*
 Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
@@ -45,24 +45,6 @@ typedef enum Option
 static void print_file_failure()
 {
     printf("Falha no processamento do arquivo.\n");
-}
-
-static void close_files(FILE *firstFile, ...)
-{
-    va_list arg;
-    va_start(arg, firstFile);
-
-    FILE *currentFile = firstFile;
-
-    while (currentFile != END_FILE)
-    {
-        if (currentFile)
-            fclose(currentFile);
-
-        currentFile = va_arg(arg, FILE *);
-    }
-
-    va_end(arg);
 }
 
 int main()
@@ -351,16 +333,9 @@ int main()
             break;
         }
 
-        FILE *sourceFile = fopen(sourcePath, "rb");
-        FILE *joinFile = fopen(joinPath, "rb");
-
-        if (select_join(sourceFile, joinFile) == SUCCESS)
+        if (select_join(sourcePath, joinPath) == FAILURE)
         {
-            CLOSE_FILES(sourceFile, joinFile);
-        }
-        else
-        {
-            CLOSE_FILES_FAILURE(sourceFile, joinFile);
+            print_file_failure();
         }
 
         break;
@@ -400,18 +375,13 @@ int main()
             break;
         }
 
-        FILE *data = fopen(sourcePath, "rb");
-        FILE *ordered = fopen(orderedPath, "wb");
-
-        if (order_by(data, orderKey, ordered) == SUCCESS)
+        if (order_by(sourcePath, orderKey, orderedPath) == SUCCESS)
         {
-            CLOSE_FILES(data, ordered);
-
             binary_on_screen(orderedPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data, ordered);
+            print_file_failure();
         }
 
         break;
@@ -426,16 +396,9 @@ int main()
             break;
         }
 
-        FILE *sourceFile = fopen(sourcePath, "rb+");
-        FILE *joinFile = fopen(joinPath, "rb+");
-
-        if (select_join_order_by(sourceFile, joinFile) == SUCCESS)
+        if (select_join_order_by(sourcePath, joinPath) == FAILURE)
         {
-            CLOSE_FILES(sourceFile, joinFile);
-        }
-        else
-        {
-            CLOSE_FILES_FAILURE(sourceFile, joinFile);
+            print_file_failure();
         }
 
         break;

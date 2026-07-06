@@ -110,36 +110,35 @@ Status insert_register(FILE *binFile, Register *data, DataHeader *header)
 
 // Delete
 
-void remove_register(FILE *binFile, int removedRRN)
+Status remove_register(FILE *binFile, int removedRRN)
 {
     char removed = '1';
 
     int registerStart = HEADER_SIZE + (REGISTER_SIZE * removedRRN);
-    if (fseek(binFile, registerStart, SEEK_SET))
-        return;
-
-    // writes the removed flag
-    fwrite(&removed, sizeof(char), 1, binFile);
+    // seek to and write removed flag
+    if (fseek(binFile, registerStart, SEEK_SET) ||
+        fwrite(&removed, sizeof(char), 1, binFile) != 1)
+        return FAILURE;
 
     // seek top position and read value
     if (fseek(binFile, sizeof(char), SEEK_SET))
-        return;
-        
+        return FAILURE;
+
     int topValue = 0;
     if (fread(&topValue, sizeof(int), 1, binFile) != 1)
-        return;
+        return FAILURE;
 
     // write removed register byte offset in the header top field
-    if (fseek(binFile, sizeof(char), SEEK_SET))
-        return;
-    fwrite(&removedRRN, sizeof(int), 1, binFile);
+    if (fseek(binFile, sizeof(char), SEEK_SET) ||
+        fwrite(&removedRRN, sizeof(int), 1, binFile) != 1)
+        return FAILURE;
 
     // update the "next" field of the register to old top value
-    if (fseek(binFile, registerStart + sizeof(char), SEEK_SET))
-        return;
-    fwrite(&topValue, sizeof(int), 1, binFile);
+    if (fseek(binFile, registerStart + sizeof(char), SEEK_SET) ||
+        fwrite(&topValue, sizeof(int), 1, binFile) != 1)
+        return FAILURE;
 
-    return;
+    return SUCCESS;
 }
 
 // Update

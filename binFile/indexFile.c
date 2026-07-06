@@ -40,11 +40,12 @@ Status write_index_header(FILE *indexFile, IndexHeader *header)
     if (fseek(indexFile, 0, SEEK_SET))
         return FAILURE;
 
-    fwrite(&header->status, sizeof(char), 1, indexFile);
-    fwrite(&header->rootNode, sizeof(int), 1, indexFile);
-    fwrite(&header->top, sizeof(int), 1, indexFile);
-    fwrite(&header->nextRRN, sizeof(int), 1, indexFile);
-    fwrite(&header->numNodes, sizeof(int), 1, indexFile);
+    if (fwrite(&header->status, sizeof(char), 1, indexFile) != 1 ||
+        fwrite(&header->rootNode, sizeof(int), 1, indexFile) != 1 ||
+        fwrite(&header->top, sizeof(int), 1, indexFile) != 1 ||
+        fwrite(&header->nextRRN, sizeof(int), 1, indexFile) != 1 ||
+        fwrite(&header->numNodes, sizeof(int), 1, indexFile) != 1)
+        return FAILURE;
 
     return SUCCESS;
 }
@@ -99,7 +100,7 @@ Status create_index(FILE *dataFile, FILE *indexFile)
         return FAILURE;
     }
 
-    while ((reg = read_register(dataFile, SKIP_REMOVED)))
+    while ((reg = read_register(dataFile)))
     {
         if (reg->removed != RECORD_REMOVED)
         {
@@ -247,7 +248,7 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
                     return FAILURE;
                 }
 
-                Register *printedRegister = read_register(dataFile, SKIP_REMOVED);
+                Register *printedRegister = read_register(dataFile);
 
                 print_register(printedRegister);
                 destroy_register(&printedRegister);
@@ -325,18 +326,24 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
     return SUCCESS;
 }
 
-static void remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHeader *header, int rrn)
+static Status remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHeader *header, int rrn)
 {
     if (fseek(dataFile, HEADER_SIZE + (rrn * REGISTER_SIZE), SEEK_SET))
-        return;
-    
-    Register *reg = read_register(dataFile, SKIP_REMOVED);
-    if (!reg)
-        return;
+        return FAILURE;
 
-    remove_register(dataFile, rrn);
-    remove_index_key(indexFile, header, reg->stationCode);
+    Register *reg = read_register(dataFile);
+    if (!reg)
+        return FAILURE;
+
+    if (remove_register(dataFile, rrn) == FAILURE ||
+        remove_index_key(indexFile, header, reg->stationCode) == FAILURE)
+    {
+        destroy_register(&reg);
+        return FAILURE;
+    }
+
     destroy_register(&reg);
+    return SUCCESS;
 }
 
 Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
@@ -366,7 +373,13 @@ Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
         if (filteredKeys)
         {
             for (int j = 0; j < numFound; j++)
-                remove_register_and_index(dataFile, indexFile, indexHeader, filteredKeys[j]);
+            {
+                if (remove_register_and_index(dataFile, indexFile, indexHeader, filteredKeys[j]) == FAILURE)
+                {
+                    free(filteredKeys);
+                    return FAILURE;
+                }
+            }
 
             free(filteredKeys);
         }
@@ -410,7 +423,7 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
         return FAILURE;
 
     Register *sourceRegister = NULL;
-    while ((sourceRegister = read_register(sourceFile, SKIP_REMOVED)))
+    while ((sourceRegister = read_register(sourceFile)))
     {
         if (sourceRegister->removed == RECORD_REMOVED)
         {
@@ -427,8 +440,8 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
                 free(indexHeader);
                 return FAILURE;
             }
-            
-            Register *joinRegister = read_register(joinFile, SKIP_REMOVED);
+
+            Register *joinRegister = read_register(joinFile);
 
             if (joinRegister->removed == RECORD_ACTIVE)
             {

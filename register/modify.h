@@ -28,8 +28,10 @@ Status insert_register(FILE *binFile, Register *data, DataHeader *header);
  *
  * @param binFile Open binary file
  * @param removedRRN RRN of the register
+ * 
+ * @return SUCCESS or FAILURE
  */
-void remove_register(FILE *binFile, int removedRRN);
+Status remove_register(FILE *binFile, int removedRRN);
 
 /**
  * @brief Updates a binary file with a modified register based on search criteria (filters)
