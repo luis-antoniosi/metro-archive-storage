@@ -56,42 +56,50 @@ IndexHeader *read_index_header(FILE *indexFile);
 /**
  * @brief Creates an index in indexFile for each non-removed register in registerFile.
  * 
- * @param registerFile File with all the registers
- * @param indexFile File where the index will be created
+ * @param dataPath Path to the binary file with all the registers
+ * @param indexPath Path where the index will be created
  * @return SUCCESS or FAILURE
  */
-Status create_index(FILE *registerFile, FILE *indexFile);
+Status create_index(char *dataPath, char *indexPath);
 
 /**
  * @brief Searches and prints a station based on filters. Uses the index file only when the filter has a "stationCode" field.
  * 
- * @param registerFile File with all the registers
- * @param indexFile File where the indices are stored
+ * @param dataPath Path of the file with all the registers
+ * @param indexPath Path of the file where the indices are stored
  * @param iterations Number of search iterations
  * @return SUCCESS or FAILURE 
  */
-Status search_with_index(FILE *registerFile, FILE *indexFile, int iterations);
+Status search_with_index(char *dataPath, char *indexPath, int iterations);
 
 /**
  * @brief Inserts a register in registerFile and its respective index in indexFile, as long as it doesn't already exist. 
  * 
- * @param registerFile File where a new register will be inserted in.
- * @param indexFile File where all indices are stored, and where the new index will be inserted.
+ * @param dataPath Path of the file where a new register will be inserted in.
+ * @param indexFile Path of the file where all indices are stored, and where the new index will be inserted.
  * @param iterations Number of insert iterations
  * @return SUCCESS or FAILURE 
  */
-Status insert_index(FILE *registerFile, FILE *indexFile, int iterations);
+Status insert_index(char *dataPath, char *indexFile, int iterations);
 
 /**
  * @brief Deletes a register in registerFile and its respective index in indexFile, as long as it's not already logically removed.
  * 
- * @param registerFile File where a register will be deleted from
- * @param indexFile File where an index will be deleted from
+ * @param dataPath Path of the file where a register will be deleted from
+ * @param indexPath Path of the file where an index will be deleted from
  * @param iterations Number of delete iterations
  * @return SUCCESS or FAILURE
  */
-Status delete_index(FILE *registerFile, FILE *indexFile, int iterations);
+Status delete_index(char *dataPath, char *indexPath, int iterations);
 
-Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile);
+/**
+ * @brief 
+ * 
+ * @param sourceFile 
+ * @param joinFile 
+ * @param indexFile 
+ * @return Status 
+ */
+Status select_join_index(char *sourceFile, char *joinFile, char *indexFile);
 
 #endif

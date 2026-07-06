@@ -23,7 +23,7 @@ IndexHeader *create_index_header()
     if (!header)
         return NULL;
 
-    header->status = '0';
+    header->status = STATUS_INCONSISTENT;
     header->rootNode = -1;
     header->top = -1;
     header->nextRRN = 0;
@@ -76,29 +76,31 @@ IndexHeader *read_index_header(FILE *indexFile)
 
 // File functions
 
-Status create_index(FILE *dataFile, FILE *indexFile)
+Status create_index(char *dataPath, char *indexPath)
 {
-    if (!dataFile || !indexFile)
+    if (!dataPath || !indexPath)
         return FAILURE;
+
+    FILE *dataFile = fopen(dataPath, "rb");
+    FILE *indexFile = fopen(indexPath, "wb+"); // Needs wb+ because in insert_index_key we use allocate_page, which needs to read a page.
+    IndexHeader *header = create_index_header();
+
+    Status status = FAILURE;
+
+    if (!dataFile || !indexFile || !header)
+        goto cleanup;
 
     if (check_header_consistency(dataFile) == FAILURE)
-        return FAILURE;
+        goto cleanup;
 
-    IndexHeader *header = create_index_header();
-    if (!header || (write_index_header(indexFile, header) == FAILURE))
-    {
-        free(header);
-        return FAILURE;
-    }
+    if (write_index_header(indexFile, header) == FAILURE)
+        goto cleanup;
 
     Register *reg = NULL;
     int rrn = 0;
 
     if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
-    {
-        free(header);
-        return FAILURE;
-    }
+        goto cleanup;
 
     while ((reg = read_register(dataFile)))
     {
@@ -113,16 +115,16 @@ Status create_index(FILE *dataFile, FILE *indexFile)
     }
 
     if (write_index_header(indexFile, header) == FAILURE)
-    {
-        free(header);
-        return FAILURE;
-    }
-
-    free(header);
+        goto cleanup;
 
     change_status(indexFile, STATUS_CONSISTENT);
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup:
+    CLOSE_FILES(dataFile, indexFile);
+    free(header);
+    return status;
 }
 
 // Helper function used in search_with_index and delete_index
@@ -144,7 +146,7 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
 
     int pairIterations = 0;
     SearchField *filters = get_all_search_fields(&pairIterations);
-    
+
     if (!filters)
         return NULL;
 
@@ -161,11 +163,9 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
     // initially a size of 1, since we need to break in case the filter is just by a stationCode
     int *stationRRNList = calloc(1, sizeof(int));
     if (!stationRRNList)
-    {
-        free(filters);
-        return NULL;
-    }
+        goto err_cleanup;
 
+    Register *filteredRegister = NULL;
     // if the filter is by a stationCode
     if (stationCode != -1)
     {
@@ -175,27 +175,33 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
         if (byteOffset != -1)
         {
             if (fseek(dataFile, byteOffset, SEEK_SET))
-            {
-                free(filters);
-                return NULL;
-            }
+                goto err_cleanup;
 
             // check if the found register meets all filters
-            Register *filteredRegister = read_register(dataFile);
-            if (check_register_match(filteredRegister, filters, pairIterations) == SUCCESS)
+            filteredRegister = read_register(dataFile);
+            if (filteredRegister &&
+                check_register_match(filteredRegister, filters, pairIterations) == SUCCESS)
             {
                 stationRRNList[*numFound] = (byteOffset - HEADER_SIZE) / REGISTER_SIZE;
                 (*numFound)++;
             }
+
+            destroy_register(&filteredRegister);
         }
     }
     else
     {
         // if the filter doesn't use stationCode, do a linear search
-        Register *filteredRegister = NULL;
         int currentRRN = 0;
         int capacity = 4; // initial capacity of 4, doubled when necessary
-        stationRRNList = realloc(stationRRNList, capacity * sizeof(int));
+
+        // checking if reallocation works
+        int *tmpList = realloc(stationRRNList, capacity * sizeof(int));
+
+        if (!tmpList)
+            goto err_cleanup;
+
+        stationRRNList = tmpList;
 
         // get each register that matches the filter, save its RRN to the array.
         while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
@@ -203,7 +209,11 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
             if (*numFound >= capacity)
             {
                 capacity *= 2;
-                stationRRNList = realloc(stationRRNList, capacity * sizeof(int));
+                // checking if reallocation works
+                tmpList = realloc(stationRRNList, capacity * sizeof(int));
+                if (!tmpList)
+                    goto err_cleanup;
+                stationRRNList = tmpList;
             }
 
             stationRRNList[*numFound] = currentRRN;
@@ -214,39 +224,51 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
         }
     }
 
-    free(filters);
-
     // if no matching registers were found, return NULL
     if (*numFound == 0)
-    {
-        free(stationRRNList);
-        return NULL;
-    }
+        goto err_cleanup;
+
+    free(filters);
 
     // caller needs to free it
     return stationRRNList;
+
+err_cleanup:
+    free(stationRRNList);
+    free(filters);
+
+    return NULL;
 }
 
-Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
+Status search_with_index(char *dataPath, char *indexPath, int iterations)
 {
-    if (!dataFile || !indexFile)
+    if (!dataPath || !indexPath)
         return FAILURE;
+
+    FILE *dataFile = fopen(dataPath, "rb");
+    FILE *indexFile = fopen(indexPath, "rb");
+
+    Status status = FAILURE;
+
+    if (!dataFile || !indexFile)
+        goto cleanup_files;
 
     if (check_header_consistency(dataFile) == FAILURE ||
         check_header_consistency(indexFile) == FAILURE)
-        return FAILURE;
+        goto cleanup_files;
 
     IndexHeader *indexHeader = read_index_header(indexFile);
     if (!indexHeader)
-        return FAILURE;
+        goto cleanup_files;
 
     if (indexHeader->status == STATUS_INCONSISTENT)
-        return FAILURE;
+        goto cleanup_header;
 
+    int *filteredKeys = NULL;
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredKeys = filter_index_rrn(dataFile, indexFile, indexHeader, &numFound);
+        filteredKeys = filter_index_rrn(dataFile, indexFile, indexHeader, &numFound);
 
         if (filteredKeys)
         {
@@ -254,13 +276,11 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
             {
                 // Go to its position using its byteOffset, read it and print it
                 if (fseek(dataFile, HEADER_SIZE + (REGISTER_SIZE * filteredKeys[j]), SEEK_SET))
-                {
-                    free(filteredKeys);
-                    free(indexHeader);
-                    return FAILURE;
-                }
+                    goto cleanup_all;
 
                 Register *printedRegister = read_register(dataFile);
+                if (!printedRegister)
+                    goto cleanup_all;
 
                 print_register(printedRegister);
                 destroy_register(&printedRegister);
@@ -271,33 +291,45 @@ Status search_with_index(FILE *dataFile, FILE *indexFile, int iterations)
 
         printf("\n");
         free(filteredKeys);
+        filteredKeys = NULL;
     }
 
-    free(indexHeader);
+    status = SUCCESS;
 
-    return SUCCESS;
+cleanup_all:
+    free(filteredKeys);
+cleanup_header:
+    free(indexHeader);
+cleanup_files:
+    CLOSE_FILES(dataFile, indexFile);
+    return status;
 }
 
-Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
+Status insert_index(char *dataPath, char *indexPath, int iterations)
 {
-    if (!dataFile || !indexFile)
+    if (!dataPath || !indexPath)
         return FAILURE;
+
+    FILE *dataFile = fopen(dataPath, "rb+");
+    FILE *indexFile = fopen(indexPath, "rb+");
+
+    Status status = FAILURE;
+
+    if (!dataFile || !indexFile)
+        goto cleanup_files;
 
     if (check_header_consistency(dataFile) == FAILURE ||
         check_header_consistency(indexFile) == FAILURE)
-        return FAILURE;
+        goto cleanup_files;
 
     change_status(dataFile, STATUS_INCONSISTENT);
     change_status(indexFile, STATUS_INCONSISTENT);
 
     DataHeader *dataHeader = read_data_header(dataFile);
     IndexHeader *indexHeader = read_index_header(indexFile);
+
     if (!dataHeader || !indexHeader)
-    {
-        free(dataHeader);
-        free(indexHeader);
-        return FAILURE;
-    }
+        goto cleanup_all;
 
     for (int i = 0; i < iterations; i++)
     {
@@ -308,10 +340,18 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
             if (search_index_key(indexFile, indexHeader, currentReg->stationCode) == -1)
             {
                 int rrn = (dataHeader->top != -1) ? dataHeader->top : dataHeader->nextRRN;
-                insert_register(dataFile, currentReg, dataHeader);
+                if (insert_register(dataFile, currentReg, dataHeader) == FAILURE)
+                {
+                    destroy_register(&currentReg);
+                    goto cleanup_all;
+                }
 
                 IndexKey insertedKey = {currentReg->stationCode, HEADER_SIZE + (rrn * REGISTER_SIZE)};
-                insert_index_key(indexFile, indexHeader, insertedKey);
+                if (insert_index_key(indexFile, indexHeader, insertedKey) == FAILURE)
+                {
+                    destroy_register(&currentReg);
+                    goto cleanup_all;
+                }
             }
 
             destroy_register(&currentReg);
@@ -320,22 +360,22 @@ Status insert_index(FILE *dataFile, FILE *indexFile, int iterations)
 
     if (write_data_header(dataFile, dataHeader) == FAILURE ||
         write_index_header(indexFile, indexHeader) == FAILURE)
-    {
-        free(dataHeader);
-        free(indexHeader);
-        return FAILURE;
-    }
-
-    free(dataHeader);
-    free(indexHeader);
+        goto cleanup_all;
 
     if (update_data_header_count(dataFile) == FAILURE)
-        return FAILURE;
+        goto cleanup_all;
 
     change_status(dataFile, STATUS_CONSISTENT);
     change_status(indexFile, STATUS_CONSISTENT);
 
-    return SUCCESS;
+    status = SUCCESS;
+
+cleanup_all:
+    free(dataHeader);
+    free(indexHeader);
+cleanup_files:
+    CLOSE_FILES(dataFile, indexFile);
+    return status;
 }
 
 static Status remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHeader *header, int rrn)
@@ -358,81 +398,93 @@ static Status remove_register_and_index(FILE *dataFile, FILE *indexFile, IndexHe
     return SUCCESS;
 }
 
-Status delete_index(FILE *dataFile, FILE *indexFile, int iterations)
+Status delete_index(char *dataPath, char *indexPath, int iterations)
 {
-    if (!dataFile || !indexFile)
+    if (!dataPath || !indexPath)
         return FAILURE;
+
+    FILE *dataFile = fopen(dataPath, "rb+");
+    FILE *indexFile = fopen(indexPath, "rb+");
+
+    Status status = FAILURE;
+
+    if (!dataFile || !indexFile)
+        goto cleanup_files;
 
     if (check_header_consistency(dataFile) == FAILURE ||
         check_header_consistency(indexFile) == FAILURE)
-        return FAILURE;
+        goto cleanup_files;
 
     change_status(dataFile, STATUS_INCONSISTENT);
     change_status(indexFile, STATUS_INCONSISTENT);
 
     IndexHeader *indexHeader = read_index_header(indexFile);
     if (!indexHeader)
-    {
-        free(indexHeader);
-        return FAILURE;
-    }
+        goto cleanup_files;
 
+    int *filteredKeys = NULL;
     for (int i = 0; i < iterations; i++)
     {
         int numFound = 0;
-        int *filteredKeys = filter_index_rrn(dataFile, indexFile, indexHeader, &numFound);
+        filteredKeys = filter_index_rrn(dataFile, indexFile, indexHeader, &numFound);
 
         if (filteredKeys)
         {
             for (int j = 0; j < numFound; j++)
             {
                 if (remove_register_and_index(dataFile, indexFile, indexHeader, filteredKeys[j]) == FAILURE)
-                {
-                    free(filteredKeys);
-                    return FAILURE;
-                }
+                    goto cleanup_all;
             }
 
             free(filteredKeys);
+            filteredKeys = NULL;
         }
     }
 
     if (write_index_header(indexFile, indexHeader) == FAILURE)
-    {
-        free(indexHeader);
-        return FAILURE;
-    }
+        goto cleanup_all;
 
     if (update_data_header_count(dataFile) == FAILURE)
-    {
-        free(indexHeader);
-        return FAILURE;
-    }
+        goto cleanup_all;
 
     change_status(dataFile, STATUS_CONSISTENT);
     change_status(indexFile, STATUS_CONSISTENT);
 
-    free(indexHeader);
+    status = SUCCESS;
 
-    return SUCCESS;
+cleanup_all:
+    free(filteredKeys);
+    free(indexHeader);
+cleanup_files:
+    CLOSE_FILES(dataFile, indexFile);
+    return status;
 }
 
-Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
+Status select_join_index(char *sourcePath, char *joinPath, char *indexPath)
 {
-    if (!sourceFile || !joinFile || !indexFile)
+    if (!sourcePath || !joinPath || !indexPath)
         return FAILURE;
+
+    FILE *sourceFile = fopen(sourcePath, "rb");
+    FILE *joinFile = fopen(joinPath, "rb");
+    FILE *indexFile = fopen(indexPath, "rb");
+
+    Status status = FAILURE;
+
+    if (!sourceFile || !joinFile || !indexFile)
+        goto cleanup_files;
 
     if (check_header_consistency(sourceFile) == FAILURE ||
         check_header_consistency(joinFile) == FAILURE ||
         check_header_consistency(indexFile) == FAILURE)
-        return FAILURE;
+        goto cleanup_files;
 
     if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
-        return FAILURE;
+        goto cleanup_files;
 
     IndexHeader *indexHeader = read_index_header(indexFile);
     if (!indexHeader)
-        return FAILURE;
+        goto cleanup_files;
 
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile)))
@@ -449,11 +501,13 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
             if (fseek(joinFile, byteOffset, SEEK_SET))
             {
                 destroy_register(&sourceRegister);
-                free(indexHeader);
-                return FAILURE;
+                goto cleanup_all;
             }
 
             Register *joinRegister = read_register(joinFile);
+
+            if (!joinRegister)
+                goto cleanup_all;
 
             if (joinRegister->removed == RECORD_ACTIVE)
             {
@@ -471,7 +525,11 @@ Status select_join_index(FILE *sourceFile, FILE *joinFile, FILE *indexFile)
         destroy_register(&sourceRegister);
     }
 
-    free(indexHeader);
+    status = SUCCESS;
 
-    return SUCCESS;
+cleanup_all:
+    free(indexHeader);
+cleanup_files:
+    CLOSE_FILES(sourceFile, joinFile, indexFile);
+    return status;
 }

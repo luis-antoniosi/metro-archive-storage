@@ -309,7 +309,7 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
         stationRRNList = calloc(capacity, sizeof(int));
 
     if (!stationRRNList)
-        goto cleanup_list;
+        goto err_cleanup;
 
     Register *filteredRegister = NULL;
     int currentRRN = 0;
@@ -324,7 +324,7 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
             // temporary list to check if realloc fails
             int *tmpList = realloc(stationRRNList, capacity * sizeof(int));
             if (!tmpList)
-                goto cleanup_list;
+                goto err_cleanup;
 
             stationRRNList = tmpList;
         }
@@ -342,14 +342,14 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
 
     // if no matching registers were found, return NULL
     if ((*numFound) == 0)
-        goto cleanup_list;
+        goto err_cleanup;
 
     free(filters);
 
     // caller needs to free it
     return stationRRNList;
 
-cleanup_list:
+err_cleanup:
     free(stationRRNList);
     free(filters);
 

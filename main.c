@@ -17,7 +17,7 @@
         print_file_failure();               \
     }
 
-// TODO: maybe add gotos
+// TODO: Check function search (index and nrmal)
 
 /*
 Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
@@ -198,18 +198,13 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb");
-        FILE *index = fopen(idxPath, "wb+");
-
-        if (create_index(data, index) == SUCCESS)
+        if (create_index(binPath, idxPath) == SUCCESS)
         {
-            CLOSE_FILES(data, index);
-
             binary_on_screen(idxPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data, index);
+            print_file_failure();
         }
 
         break;
@@ -225,16 +220,9 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb");
-        FILE *index = fopen(idxPath, "rb");
-
-        if (search_with_index(data, index, iterations) == SUCCESS)
+        if (search_with_index(binPath, idxPath, iterations) == FAILURE)
         {
-            CLOSE_FILES(data, index);
-        }
-        else
-        {
-            CLOSE_FILES_FAILURE(data, index);
+            print_file_failure();
         }
 
         break;
@@ -250,19 +238,14 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb+");
-        FILE *index = fopen(idxPath, "rb+");
-
-        if (insert_index(data, index, iterations) == SUCCESS)
+        if (insert_index(binPath, idxPath, iterations) == SUCCESS)
         {
-            CLOSE_FILES(data, index);
-
             binary_on_screen(binPath);
             binary_on_screen(idxPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data, index);
+            print_file_failure();
         }
 
         break;
@@ -278,22 +261,18 @@ int main()
             break;
         }
 
-        FILE *data = fopen(binPath, "rb+");
-        FILE *index = fopen(idxPath, "rb+");
-
-        if (delete_index(data, index, iterations) == SUCCESS)
+        if (delete_index(binPath, idxPath, iterations) == SUCCESS)
         {
-            CLOSE_FILES(data, index);
-
             binary_on_screen(binPath);
             binary_on_screen(idxPath);
         }
         else
         {
-            CLOSE_FILES_FAILURE(data, index);
+            print_file_failure();
         }
+
+        break;
     }
-    break;
     case SELECT_JOIN:
     {
         char sourcePath[BUF_SIZE], joinPath[BUF_SIZE];
@@ -321,17 +300,9 @@ int main()
             break;
         }
 
-        FILE *sourceFile = fopen(sourcePath, "rb");
-        FILE *joinFile = fopen(joinPath, "rb");
-        FILE *indexFile = fopen(idxPath, "rb");
-
-        if (select_join_index(sourceFile, joinFile, indexFile) == SUCCESS)
+        if (select_join_index(sourcePath, joinPath, idxPath) == FAILURE)
         {
-            CLOSE_FILES(sourceFile, joinFile, indexFile);
-        }
-        else
-        {
-            CLOSE_FILES_FAILURE(sourceFile, joinFile, indexFile);
+            print_file_failure();
         }
 
         break;
