@@ -160,11 +160,7 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
         }
     }
 
-    // initially a size of 1, since we need to break in case the filter is just by a stationCode
-    int *stationRRNList = calloc(1, sizeof(int));
-    if (!stationRRNList)
-        goto err_cleanup;
-
+    int *stationRRNList = NULL;
     Register *filteredRegister = NULL;
     // if the filter is by a stationCode
     if (stationCode != -1)
@@ -174,6 +170,11 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
 
         if (byteOffset != -1)
         {
+            stationRRNList = calloc(1, sizeof(int));
+            if (!stationRRNList)
+                goto err_cleanup;
+
+            // read register requires us to seek beforehand
             if (fseek(dataFile, byteOffset, SEEK_SET))
                 goto err_cleanup;
 
@@ -193,29 +194,15 @@ static int *filter_index_rrn(FILE *dataFile, FILE *indexFile, IndexHeader *heade
     {
         // if the filter doesn't use stationCode, do a linear search
         int currentRRN = 0;
-        int capacity = 4; // initial capacity of 4, doubled when necessary
+        int capacity = header->nextRRN > 0 ? header->nextRRN : 1; // capacity is equal to the amount of registers in file
+        stationRRNList = calloc(capacity, sizeof(int));
 
-        // checking if reallocation works
-        int *tmpList = realloc(stationRRNList, capacity * sizeof(int));
-
-        if (!tmpList)
+        if (!stationRRNList)
             goto err_cleanup;
-
-        stationRRNList = tmpList;
 
         // get each register that matches the filter, save its RRN to the array.
         while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
         {
-            if (*numFound >= capacity)
-            {
-                capacity *= 2;
-                // checking if reallocation works
-                tmpList = realloc(stationRRNList, capacity * sizeof(int));
-                if (!tmpList)
-                    goto err_cleanup;
-                stationRRNList = tmpList;
-            }
-
             stationRRNList[*numFound] = currentRRN;
             (*numFound)++;
             currentRRN++;

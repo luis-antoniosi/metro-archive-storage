@@ -278,17 +278,20 @@ cleanup:
  */
 static int *filter_data_rrn(FILE *dataFile, int *numFound)
 {
-    if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
-        return NULL;
-
-    *numFound = 0;
-
     int pairIterations = 0;
     SearchField *filters = get_all_search_fields(&pairIterations);
 
     if (!filters)
         return NULL;
 
+    DataHeader *header = read_data_header(dataFile);
+    if (!header)
+        goto err_cleanup_filters;
+
+    if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
+        goto err_cleanup_header;
+
+    *numFound = 0;
     int searchByStationCode = 0;
     for (int j = 0; j < pairIterations; j++)
     {
@@ -300,7 +303,7 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
     }
 
     int *stationRRNList = NULL;
-    int capacity = 4; // capacity is doubled and array is reallocated when necessary
+    int capacity = header->nextRRN > 0 ? header->nextRRN : 1; // capacity is doubled and array is reallocated when necessary
 
     // Will have a size of 1 if the search is by stationCode, since we need to break.
     if (searchByStationCode)
@@ -309,7 +312,7 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
         stationRRNList = calloc(capacity, sizeof(int));
 
     if (!stationRRNList)
-        goto err_cleanup;
+        goto err_cleanup_header;
 
     Register *filteredRegister = NULL;
     int currentRRN = 0;
@@ -317,18 +320,6 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
     // get each register that matches the filter, save its RRN to the array.
     while ((filteredRegister = check_register_field_search(dataFile, filters, pairIterations, &currentRRN)))
     {
-        if (*numFound >= capacity)
-        {
-            capacity *= 2;
-
-            // temporary list to check if realloc fails
-            int *tmpList = realloc(stationRRNList, capacity * sizeof(int));
-            if (!tmpList)
-                goto err_cleanup;
-
-            stationRRNList = tmpList;
-        }
-
         stationRRNList[*numFound] = currentRRN;
 
         (*numFound)++;
@@ -342,15 +333,19 @@ static int *filter_data_rrn(FILE *dataFile, int *numFound)
 
     // if no matching registers were found, return NULL
     if ((*numFound) == 0)
-        goto err_cleanup;
+        goto err_cleanup_all;
 
+    free(header);
     free(filters);
 
     // caller needs to free it
     return stationRRNList;
 
-err_cleanup:
+err_cleanup_all:
     free(stationRRNList);
+err_cleanup_header:
+    free(header);
+err_cleanup_filters:
     free(filters);
 
     return NULL;
@@ -586,7 +581,7 @@ Status select_join(char *sourcePath, char *joinPath)
     if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
         goto cleanup;
 
-    // we start reading each register by the start of the sourceFile 
+    // we start reading each register by the start of the sourceFile
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile)))
     {
@@ -638,7 +633,7 @@ cleanup:
 
 /**
  * @brief Static function used in order_by's qsort() to compare the stationCode of two different registers
- * 
+ *
  * @param a First register
  * @param b Second register
  * @return >0 if the stationCode of a is greater than b, <0 if the stationCode of b is greater than a. 0 if they're equal.
@@ -658,7 +653,7 @@ static int compare_registers_station(const void *a, const void *b)
 
 /**
  * @brief Static function used in order_by's qsort() to compare the nextStationCode of two different registers
- * 
+ *
  * @param a First register
  * @param b Second register
  * @return >0 if the nextStationCode of a is greater than b, <0 if the nextStationCode of b is greater than a. 0 if they're equal.
@@ -735,6 +730,14 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
     if (!orderedFile)
         goto cleanup_registers;
 
+    // we don't order removed registers, so the top should be -1, nextRRN is also set to idx. This is only important when the dataFile has removed registers.
+    header->status = STATUS_INCONSISTENT;
+    header->top = -1;
+    header->nextRRN = idx;
+
+    if (write_data_header(orderedFile, header) == FAILURE)
+        goto cleanup_all;
+
     if (fseek(orderedFile, HEADER_SIZE, SEEK_SET))
         goto cleanup_all;
 
@@ -747,14 +750,6 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
         destroy_register(&savedRegisters[i]);
         savedRegisters[i] = NULL;
     }
-
-    // we don't order removed registers, so the top should be -1, nextRRN is also set to idx. This is only important when the dataFile has removed registers.
-    header->status = STATUS_INCONSISTENT;
-    header->top = -1;
-    header->nextRRN = idx;
-
-    if (write_data_header(orderedFile, header) == FAILURE)
-        goto cleanup_all;
 
     change_status(orderedFile, STATUS_CONSISTENT);
 

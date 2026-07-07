@@ -144,6 +144,12 @@ static int search_recursive(FILE *indexFile, int currentRRN, int searchKey)
     if (!page)
         return -1;
 
+    if (page->removed == RECORD_REMOVED)
+    {
+        free(page);
+        return -1;
+    }
+
     // Checking if the searchkey is in the current page
     int result = binary_index_search(page, searchKey);
 
