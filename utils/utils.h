@@ -6,11 +6,6 @@
 
 #define END_FILE (FILE *)-1
 #define CLOSE_FILES(...) close_files(__VA_ARGS__, END_FILE)
-#define CLOSE_FILES_FAILURE(...)            \
-    {                                       \
-        close_files(__VA_ARGS__, END_FILE); \
-        print_file_failure();               \
-    }
 
 // Print binary
 /**
@@ -31,18 +26,19 @@ void binary_on_screen(char *fileName);
 void change_status(FILE *binFile, char status);
 
 /**
- * @brief 
+ * @brief Checks if the header of a file is consistents (STATUS_CONSISENT or STATUS_INCONSISTENT)
  * 
- * @param binFile 
- * @return Status 
+ * @param binFile File that'll be checked
+ * @return SUCCESS if it is consistent, FAILURE if not.
  */
 Status check_header_consistency(FILE *binFile);
 
 /**
- * @brief 
+ * @brief Variadic function that closes a variable number of files, NULL or not.
+ * It should be called using CLOSE_FILES, because the END_FILE pointer is needed for a check.
  * 
- * @param firstFile 
- * @param ... 
+ * @param firstFile First file of the list
+ * @param ... All files separated by commas
  */
 void close_files(FILE *firstFile, ...);
 

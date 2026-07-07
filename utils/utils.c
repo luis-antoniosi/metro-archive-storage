@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <stdarg.h> // used in close_files
 #include "utils.h"
 
 void change_status(FILE *dataFile, char status)
@@ -68,6 +68,8 @@ void close_files(FILE *firstFile, ...)
 
     FILE *currentFile = firstFile;
 
+    // since simply checking for NULL wouldn't work (if a file is NULL, we'd be stopping the loop),
+    // we added a define "END_FILE", which will always be at the end if called using "CLOSE_FILES"
     while (currentFile != END_FILE)
     {
         if (currentFile)

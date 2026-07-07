@@ -486,6 +486,7 @@ Status select_join_index(char *sourcePath, char *joinPath, char *indexPath)
     if (!indexHeader)
         goto cleanup_files;
 
+    // we start reading each register by the start of the sourceFile
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile)))
     {
@@ -495,6 +496,8 @@ Status select_join_index(char *sourcePath, char *joinPath, char *indexPath)
             continue;
         }
 
+        // unlike select_join, we simply find the desired register (that meets the condition), 
+        // instead of checking each register from joinFile
         int byteOffset = search_index_key(indexFile, indexHeader, sourceRegister->nextStationCode);
         if (byteOffset != -1)
         {
@@ -509,6 +512,7 @@ Status select_join_index(char *sourcePath, char *joinPath, char *indexPath)
             if (!joinRegister)
                 goto cleanup_all;
 
+            // if the register is not removed, print it (we already know the condition is met)
             if (joinRegister->removed == RECORD_ACTIVE)
             {
                 printf("%d %s %s %d %s\n",

@@ -124,10 +124,35 @@ Status insert_data(char *dataPath, int iterations);
  */
 Status update_data_where(char *dataPath, int iterations);
 
+/**
+ * @brief Joins two data files, printing each register of sourcePath's file that meet
+ * the condition "sourceRegister->nextStationCode == joinRegister->stationCode" with a register from joinFile. 
+ * The check is done using a linear loop for both.
+ * 
+ * @param sourcePath Path to the first data file
+ * @param joinPath Path to the second data file (the one that'll be joined)
+ * @return SUCCESS or FAILURE
+ */
 Status select_join(char *sourcePath, char *joinPath);
 
+/**
+ * @brief Creates a new ordered (asceding) version of the data file based on a field. 
+ * In this assignment, only "codProxEstacao" and "codEstacao" are used
+ * 
+ * @param dataPath Path to the data file
+ * @param field Field that'll be used to order the data file
+ * @param orderedPath Path to where the ordered file will be written to
+ * @return SUCCESS or FAILURE
+ */
 Status order_by(char *dataPath, char *field, char *orderedPath);
 
+/**
+ * @brief Orders two files, then applies the join to them
+ * 
+ * @param sourcePath Path to the first data file
+ * @param joinPath Path to the secnod data file (the one that'll be joined)
+ * @return SUCCESS or FAILURE 
+ */
 Status select_join_order_by(char *sourcePath, char *joinPath);
 
 #endif

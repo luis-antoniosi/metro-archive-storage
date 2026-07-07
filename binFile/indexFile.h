@@ -93,13 +93,15 @@ Status insert_index(char *dataPath, char *indexFile, int iterations);
 Status delete_index(char *dataPath, char *indexPath, int iterations);
 
 /**
- * @brief 
+ * @brief Joins two data files, printing registers of sourcePath's file that meet
+ * the condition "sourceRegister->nextStationCode == joinRegister->stationCode" with a register from joinFile. 
+ * The check is done using an index file for the joinFile.
  * 
- * @param sourceFile 
- * @param joinFile 
- * @param indexFile 
- * @return Status 
+ * @param sourcePath Path to the first data file
+ * @param joinPath Path to the second data file (the one that'll be joined)
+ * @param indexPath Path to the index file. Indexes the joined file.
+ * @return SUCCESS or FAILURE
  */
-Status select_join_index(char *sourceFile, char *joinFile, char *indexFile);
+Status select_join_index(char *sourcePath, char *joinPath, char *indexPath);
 
 #endif

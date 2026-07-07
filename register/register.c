@@ -154,9 +154,10 @@ Register *read_register(FILE *binFile)
         return currentRegister;
     }
 
-    // if not removed, go on reading normally
+    // if not removed, go on reading normally. next has to be separate because of compiler (and -O3)
     if (fread(&currentRegister->next, sizeof(int), 1, binFile) != 1)
     {
+        printf("Unable to read \"removed\" attribute of a register.\n");
         free(currentRegister);
         return NULL;
     }

@@ -586,6 +586,7 @@ Status select_join(char *sourcePath, char *joinPath)
     if (fseek(sourceFile, HEADER_SIZE, SEEK_SET))
         goto cleanup;
 
+    // we start reading each register by the start of the sourceFile 
     Register *sourceRegister = NULL;
     while ((sourceRegister = read_register(sourceFile)))
     {
@@ -602,11 +603,14 @@ Status select_join(char *sourcePath, char *joinPath)
         }
 
         Register *joinRegister = NULL;
+        // unlike select_join_index, we read each register from joinFile until finding a match.
         while ((joinRegister = read_register(joinFile)))
         {
+            // If the register in the join file is not removed and both sourceRegister and joinRegister meet the condition
             if (joinRegister->removed == RECORD_ACTIVE &&
                 sourceRegister->nextStationCode == joinRegister->stationCode)
             {
+                // print all requested values
                 printf("%d %s %s %d %s\n",
                        sourceRegister->stationCode,
                        sourceRegister->stationName,
@@ -632,6 +636,13 @@ cleanup:
     return status;
 }
 
+/**
+ * @brief Static function used in order_by's qsort() to compare the stationCode of two different registers
+ * 
+ * @param a First register
+ * @param b Second register
+ * @return >0 if the stationCode of a is greater than b, <0 if the stationCode of b is greater than a. 0 if they're equal.
+ */
 static int compare_registers_station(const void *a, const void *b)
 {
     Register *regA = *(Register **)a;
@@ -645,6 +656,13 @@ static int compare_registers_station(const void *a, const void *b)
     return 0;
 }
 
+/**
+ * @brief Static function used in order_by's qsort() to compare the nextStationCode of two different registers
+ * 
+ * @param a First register
+ * @param b Second register
+ * @return >0 if the nextStationCode of a is greater than b, <0 if the nextStationCode of b is greater than a. 0 if they're equal.
+ */
 static int compare_registers_next(const void *a, const void *b)
 {
     Register *regA = *(Register **)a;
@@ -677,6 +695,7 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
     if (!header)
         goto cleanup_data_file;
 
+    // Dynamically allocated array that'll store pointers to all registers. The maximum amount of registers will be equal to header's nextRRN.
     Register **savedRegisters = malloc(sizeof(Register *) * header->nextRRN);
     if (!savedRegisters)
         goto cleanup_header;
@@ -684,6 +703,7 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
     if (fseek(dataFile, HEADER_SIZE, SEEK_SET))
         goto cleanup_registers;
 
+    // reading all registers from the start
     Register *currentRegister = NULL;
     while (idx < header->nextRRN && (currentRegister = read_register(dataFile)))
     {
@@ -693,9 +713,11 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
             continue;
         }
 
+        // if the register is not removed, save it to the array.
         savedRegisters[idx++] = currentRegister;
     }
 
+    // close the data file since we are not using it anymore, and to deal with the case where dataPath == orderedPath
     fclose(dataFile);
     dataFile = NULL;
 
@@ -705,7 +727,7 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
     // if the field is codEstacao
     if (fieldValue == 0)
         qsort(savedRegisters, idx, sizeof(Register *), compare_registers_station);
-    else
+    else // if its codProxEstacao
         qsort(savedRegisters, idx, sizeof(Register *), compare_registers_next);
 
     FILE *orderedFile = fopen(orderedPath, "wb");
@@ -714,29 +736,31 @@ Status order_by(char *dataPath, char *field, char *orderedPath)
         goto cleanup_registers;
 
     if (fseek(orderedFile, HEADER_SIZE, SEEK_SET))
-        goto cleanup_ordered_file;
+        goto cleanup_all;
 
+    // write all registers and destroy their allocated pointer right after.
     for (int i = 0; i < idx; i++)
     {
         if (write_register(orderedFile, savedRegisters[i]) == FAILURE)
-            goto cleanup_ordered_file;
+            goto cleanup_all;
 
         destroy_register(&savedRegisters[i]);
         savedRegisters[i] = NULL;
     }
 
+    // we don't order removed registers, so the top should be -1, nextRRN is also set to idx. This is only important when the dataFile has removed registers.
     header->status = STATUS_INCONSISTENT;
     header->top = -1;
     header->nextRRN = idx;
 
     if (write_data_header(orderedFile, header) == FAILURE)
-        goto cleanup_ordered_file;
+        goto cleanup_all;
 
     change_status(orderedFile, STATUS_CONSISTENT);
 
     status = SUCCESS;
 
-cleanup_ordered_file:
+cleanup_all:
     CLOSE_FILES(orderedFile);
 cleanup_registers:
     for (int i = 0; i < idx; i++)
@@ -757,9 +781,11 @@ Status select_join_order_by(char *sourcePath, char *joinPath)
     if (!sourcePath || !joinPath)
         return FAILURE;
 
+    // order both files, first by "codProxEstacao", second one by "codEstacao", as specified in the assignment pdf.
     if (order_by(sourcePath, "codProxEstacao", sourcePath) == FAILURE ||
         order_by(joinPath, "codEstacao", joinPath) == FAILURE)
         return FAILURE;
 
+    // joins both
     return select_join(sourcePath, joinPath);
 }

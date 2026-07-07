@@ -25,6 +25,7 @@ static int allocate_page(FILE *indexFile, IndexHeader *header)
         int rrn = header->top;
 
         IndexPage *page = read_index_page(indexFile, rrn);
+
         header->top = page->next;
 
         free(page);
@@ -128,6 +129,12 @@ static InsertResult insert_loop(FILE *indexFile, IndexHeader *header, int curren
     IndexPage *page = read_index_page(indexFile, currentRRN);
     if (!page)
         return ERROR;
+
+    if (page->removed == RECORD_REMOVED)
+    {
+        free(page);
+        return ERROR;
+    }
 
     // checking if the key is already in the tree
     int pos = binary_index_search(page, key.searchKey);

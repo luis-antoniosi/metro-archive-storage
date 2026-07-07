@@ -67,8 +67,13 @@ IndexPage *read_index_page(FILE *indexFile, int rrn)
     if (fseek(indexFile, INDEX_HEADER_SIZE + (rrn * INDEX_PAGE_SIZE), SEEK_SET))
         return NULL;
 
-    if (fread(&page->removed, sizeof(char), 1, indexFile) != 1 ||
-        fread(&page->next, sizeof(int), 1, indexFile) != 1 ||
+    if (fread(&page->removed, sizeof(char), 1, indexFile) != 1)
+    {
+        free(page);
+        return NULL;
+    }
+
+    if (fread(&page->next, sizeof(int), 1, indexFile) != 1 ||
         fread(&page->nodeType, sizeof(int), 1, indexFile) != 1 ||
         fread(&page->keyCount, sizeof(int), 1, indexFile) != 1)
     {

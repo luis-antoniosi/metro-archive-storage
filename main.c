@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <string.h>
-#include <stdarg.h> // used for close_files
 
 #include "types.h"
 #include "utils/utils.h"
@@ -11,17 +10,19 @@
 #include "binFile/dataFile.h"
 #include "binFile/indexFile.h"
 
-#define CLOSE_FILES_FAILURE(...)            \
-    {                                       \
-        close_files(__VA_ARGS__, END_FILE); \
-        print_file_failure();               \
-    }
-
 // TODO: Check function search (index and nrmal)
 
 /*
 Aluno:  Luís Gustavo Vieira Antoniosi   | NºUSP: 17067476
 Aluno:  Luiz Filipe Sá Vioto            | NºUSP: 16886252
+*/
+
+/* 
+-- Main changes --
+    - gotos were added in dataFile.c and indexFile.c functions for freeing dynamically allocated things, and to avoid code repetition. 
+      (I know gotos are criticized but I feel like this is a good use case!)
+    - We now pass strings to each dataFile.c and indexFile.c function, instead of using FILE pointers. Each file is opened in its own function.
+      This change happened because order_by has the case where dataPath == orderedPath, which needed truncation when dataFile had removed registers 
 */
 
 typedef enum Option
